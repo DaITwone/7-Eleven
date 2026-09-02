@@ -53,7 +53,7 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-brand-green text-white transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[min(18rem,85vw)] flex-col bg-brand-green text-white shadow-2xl transition-transform duration-300 lg:w-72 lg:translate-x-0 lg:shadow-none ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -121,10 +121,10 @@ export default function Sidebar({
           <div className="mt-2">
             <div className="flex w-full items-center gap-3 px-4 py-3.5">
               <LayoutGrid
-  size={20}
-  strokeWidth={2.2}
-  className="shrink-0 text-emerald-50"
-/>
+                size={20}
+                strokeWidth={2.2}
+                className="shrink-0 text-emerald-50"
+              />
 
               <p className="flex-1 text-left text-sm font-semibold text-emerald-50">
                 Danh mục sản phẩm

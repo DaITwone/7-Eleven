@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Bell, ChevronDown, Menu, Search, MapPin } from "lucide-react";
-
+import { Menu } from "lucide-react";
 import Sidebar from "./Sidebar";
 
 export default function Layout({
@@ -13,7 +12,6 @@ export default function Layout({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Ẩn toàn bộ Sidebar khi in */}
       <div className="app-sidebar">
         <Sidebar
           activePage={activePage}
@@ -24,10 +22,24 @@ export default function Layout({
         />
       </div>
 
-      {/* Loại bỏ khoảng trống sidebar khi in */}
       <div className="app-shell lg:pl-72">
-        {/* Loại bỏ padding của layout khi in */}
-        <main className="app-main p-4 md:p-8">{children}</main>
+        {/* Header chỉ hiện trên mobile/tablet */}
+        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-4 shadow-sm lg:hidden">
+          <button
+            type="button"
+            aria-label="Mở menu"
+            onClick={() => setOpen(true)}
+            className="rounded-xl p-2 text-brand-green transition hover:bg-emerald-50"
+          >
+            <Menu size={25} />
+          </button>
+
+          <p className="ml-3 text-base font-extrabold text-brand-green">
+            STORE MANAGER
+          </p>
+        </header>
+
+        <main className="app-main p-4 sm:p-6 md:p-8">{children}</main>
       </div>
     </div>
   );
