@@ -24,7 +24,7 @@ export default function Layout({
 
       <div className="app-shell lg:pl-72">
         {/* Header chỉ hiện trên mobile/tablet */}
-        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-4 shadow-sm lg:hidden">
+        <header className="app-header sticky top-0 z-20 flex h-16 items-center border-b border-slate-200 bg-white px-4 shadow-sm lg:hidden">
           <button
             type="button"
             aria-label="Mở menu"
