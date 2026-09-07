@@ -2072,13 +2072,13 @@ export const productCatalog = [
           },
           {
             id: 22,
-            name: "Xúc Xích HCT Ủ Nụ Sườn Nướng BBQ 85g",
+            name: "Xúc Xích HCT Ú Nu Sườn Nướng BBQ 85g",
             price: 16000,
             image: "/images/products/xuc-xich-hct-u-nu-suon-nuong-bbq-85g.png",
           },
           {
             id: 23,
-            name: "Xúc Xích HCT Ủ Nụ Vị Tomyum 85g",
+            name: "Xúc Xích HCT Ú Nụ Vị Tomyum 85g",
             price: 16000,
             image: "/images/products/xuc-xich-hct-u-nu-vi-tomyum-85g.png",
           },
