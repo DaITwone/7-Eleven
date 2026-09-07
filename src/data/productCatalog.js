@@ -1994,9 +1994,9 @@ export const productCatalog = [
           },
           {
             id: 9,
-            name: "Trứng Gà Tiềm Vị Cay VTD 90g",
+            name: "Trứng Gà Tiềm Vị Cay VTD 80g",
             price: 14000,
-            image: "/images/products/trung-ga-tiem-vi-cay-vtd-90g.png",
+            image: "/images/products/trung-ga-tiem-vi-cay-vtd-80g.png",
           },
           {
             id: 10,
