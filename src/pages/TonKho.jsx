@@ -490,20 +490,20 @@ function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldCha
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-black/40"
       />
-      <aside className="relative flex h-[92dvh] max-h-[760px] w-full max-w-none flex-col overflow-y-auto rounded-t-[26px] border-t-2 border-black bg-[#FFFDF8] shadow-[0_-8px_0_rgba(0,0,0,0.12)] animate-[slideUp_180ms_ease-out] sm:h-full sm:max-h-none sm:max-w-md sm:rounded-t-none sm:border-l-2 sm:border-t-0 sm:shadow-[-8px_0_0_rgba(0,0,0,0.12)] sm:animate-[slideIn_180ms_ease-out]">
+      <aside className="relative flex h-auto max-h-[92dvh] w-full max-w-none flex-col overflow-y-auto rounded-t-[26px] border-t-2 border-black bg-[#FFFDF8] shadow-[0_-8px_0_rgba(0,0,0,0.12)] animate-[slideUp_180ms_ease-out] sm:h-full sm:max-h-none sm:max-w-md sm:rounded-t-none sm:border-l-2 sm:border-t-0 sm:shadow-[-8px_0_0_rgba(0,0,0,0.12)] sm:animate-[slideIn_180ms_ease-out]">
         <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-stone-300 sm:hidden" />
-        <div className="flex items-start justify-between gap-3 border-b-2 border-black bg-white p-5">
+        <div className="flex items-start justify-between gap-2 border-b-2 border-black bg-white p-2.5 sm:gap-3 sm:p-5">
           <div className="min-w-0">
-            <h2 className="mt-1 text-lg font-black uppercase leading-6 text-black">{item.name}</h2>
+            <h2 className="mt-1 text-sm font-black uppercase leading-4 text-black sm:text-lg sm:leading-6">{item.name}</h2>
             <p className="mt-1 text-sm font-semibold text-stone-500">{item.categoryName} · {state.label}</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-md border-2 border-black bg-[#FF8200] text-white transition hover:bg-[#EE3124]" aria-label="Đóng">
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-md border-2 border-black bg-[#FF8200] text-white transition hover:bg-[#EE3124] sm:h-10 sm:w-10" aria-label="Đóng">
             <X size={20} />
           </button>
         </div>
 
-        <div className="space-y-4 p-5">
-          <div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061]">
+        <div className="space-y-2 p-2.5 sm:space-y-4 sm:p-5">
+          <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] sm:max-w-[260px]">
             <div className="aspect-[4/3] bg-white">
               {item.image ? <img src={item.image} alt={item.name} className="h-full w-full object-contain p-4" /> : <div className="grid h-full place-items-center text-stone-300"><ImageOff size={32} /></div>}
             </div>
@@ -512,30 +512,30 @@ function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldCha
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Số lượng</span>
-              <input type="number" min="0" value={item.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-base font-bold outline-none focus:bg-orange-50" />
+              <input type="number" min="0" value={item.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-base" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">HSD</span>
-              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={item.expiryDateInput ?? toInputDate(item.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-bold outline-none focus:bg-orange-50" />
+              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={item.expiryDateInput ?? toInputDate(item.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
             </label>
           </div>
 
           <label className="block">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Nhà cung cấp</span>
-            <input type="text" value={item.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
+            <input type="text" value={item.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
           </label>
 
           <div className="rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-black">Cấu hình báo date NCC</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-black">Date NCC</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <input type="number" min="0" value={item.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-bold outline-none focus:bg-orange-50" aria-label="Số ngày báo trước" />
-              <select value={item.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-11 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50" aria-label="Đơn vị báo trước">
+              <input type="number" min="0" value={item.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" aria-label="Số ngày báo trước" />
+              <select value={item.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-1 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-2 sm:text-sm" aria-label="Đơn vị báo trước">
                 <option value="day">Ngày</option>
                 <option value="month">Tháng</option>
                 <option value="year">Năm</option>
               </select>
             </div>
-            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!item.expiryDate} className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border-2 border-black bg-white px-3 text-xs font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40">
+            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!item.expiryDate} className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-white px-2 text-[10px] font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:gap-2 sm:px-3 sm:text-xs">
               <CalendarClock size={15} /> Tự tính ngày báo NCC
             </button>
             <p className="mt-2 text-xs font-bold text-stone-600">Ngày báo: {toDisplayDate(item.supplierReminderDate)}</p>
@@ -546,7 +546,7 @@ function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldCha
             <textarea value={item.note ?? ""} onChange={(event) => onFieldChange(item.id, "note", event.target.value)} placeholder="Lý do, tình trạng hàng, phản hồi NCC..." rows="3" className="w-full resize-none rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
           </label>
 
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-1 [&>button]:whitespace-nowrap [&>button]:px-1 [&>button]:py-2 [&>button]:text-[9px] sm:gap-2 sm:[&>button]:px-3 sm:[&>button]:py-3 sm:[&>button]:text-xs">
             <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "notified")} className="rounded-md border-2 border-black bg-amber-100 px-3 py-3 text-xs font-black uppercase text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40">Báo NCC</button>
             <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "withdrawn")} className="rounded-md border-2 border-black bg-orange-100 px-3 py-3 text-xs font-black uppercase text-orange-800 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40">Rút date</button>
             <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "destroyed")} className="rounded-md border-2 border-black bg-red-100 px-3 py-3 text-xs font-black uppercase text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-40">Hủy hàng</button>
@@ -575,7 +575,7 @@ function SummaryCard({ icon: Icon, value, label, color }) {
       </div>
       <div className="mt-2 sm:mt-4">
         <p className="text-xl font-black leading-none text-[#EE3124] sm:text-3xl">{value}</p>
-        <div className="mt-3 flex items-center">
+        <div className="mt-3 hidden items-center sm:flex">
           <span className="h-1 w-10 rounded-full bg-[#FF8200] transition-all duration-300 group-hover:w-20" />
           <span className="ml-1 h-1 w-3 rounded-full bg-[#007A3D]" />
         </div>
