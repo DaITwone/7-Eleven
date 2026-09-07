@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import {
 import { productCatalog } from "../data/productCatalog";
 
 const STORAGE_KEY = "tonKhoInventoryV2";
+const ALL_GROUP_ID = "__all__";
 const TODAY = new Date();
 
 function pad(value) {
@@ -83,6 +84,16 @@ function normalizeNumberInput(value) {
   return value.replace(/^0+(?=\d)/, "");
 }
 
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("vi")
+    .replace(/đ/g, "d")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function daysUntil(dateKey) {
   if (!dateKey) return null;
   const target = parseDateKey(dateKey);
@@ -95,6 +106,49 @@ function calculateSupplierReminderDate(expiryDate, reminderValue, reminderUnit) 
   const value = Math.max(0, Number(reminderValue) || 0);
   const days = reminderUnit === "year" ? value * 365 : reminderUnit === "month" ? value * 30 : value;
   return formatDateKey(addDays(parseDateKey(expiryDate), -days));
+}
+
+function createEmptyBatch() {
+  return {
+    id: crypto.randomUUID(),
+    quantity: "",
+    expiryDate: "",
+    expiryDateInput: "",
+    supplierName: "",
+    reminderValue: 3,
+    reminderUnit: "day",
+    supplierReminderDate: "",
+    note: "",
+    action: "normal",
+    statusUpdatedAt: formatDateKey(TODAY),
+  };
+}
+
+function normalizeBatches(item) {
+  if (Array.isArray(item.batches) && item.batches.length > 0) {
+    return item.batches;
+  }
+
+  return [
+    {
+      id: `${item.id}-legacy`,
+      quantity: item.quantity ?? "",
+      expiryDate: item.expiryDate ?? "",
+      expiryDateInput: item.expiryDateInput ?? "",
+      supplierName: item.supplierName ?? "",
+      reminderValue: item.reminderValue ?? 3,
+      reminderUnit: item.reminderUnit ?? "day",
+      supplierReminderDate: item.supplierReminderDate ?? "",
+      note: item.note ?? "",
+      action: item.action ?? "normal",
+      statusUpdatedAt: item.statusUpdatedAt ?? formatDateKey(TODAY),
+    },
+  ];
+}
+
+function getLatestBatch(item) {
+  const batches = normalizeBatches(item);
+  return batches[batches.length - 1] ?? createEmptyBatch();
 }
 
 function buildInventorySeed() {
@@ -115,16 +169,7 @@ function buildInventorySeed() {
           image: primaryVariant.image ?? product.image ?? "",
           price: primaryVariant.price ?? product.price ?? 0,
           size: primaryVariant.size ?? null,
-          quantity: "",
-          expiryDate: "",
-          expiryDateInput: "",
-          supplierName: "",
-          reminderValue: 3,
-          reminderUnit: "day",
-          supplierReminderDate: "",
-          note: "",
-          action: "normal",
-          statusUpdatedAt: formatDateKey(TODAY),
+          batches: [createEmptyBatch()],
         });
       });
     });
@@ -144,16 +189,25 @@ function loadInventory() {
     if (!Array.isArray(parsed)) return seed;
 
     const map = new Map(parsed.map((item) => [item.id, item]));
-    return seed.map((item) => ({ ...item, ...map.get(item.id) }));
+    return seed.map((item) => {
+      const savedItem = map.get(item.id);
+      if (!savedItem) return item;
+      return {
+        ...item,
+        ...savedItem,
+        batches: normalizeBatches(savedItem),
+      };
+    });
   } catch {
     return seed;
   }
 }
 
 function getStockState(item) {
-  const remaining = daysUntil(item.expiryDate);
+  const batch = getLatestBatch(item);
+  const remaining = daysUntil(batch.expiryDate);
 
-  if (!item.expiryDate) {
+  if (!batch.expiryDate) {
     return {
       label: "Chưa kiểm date",
       tone: "bg-slate-100 text-slate-700",
@@ -161,7 +215,7 @@ function getStockState(item) {
     };
   }
 
-  if (item.action === "destroyed") {
+  if (batch.action === "destroyed") {
     return {
       label: "Đã hủy",
       tone: "bg-slate-100 text-slate-700",
@@ -169,7 +223,7 @@ function getStockState(item) {
     };
   }
 
-  if (item.action === "withdrawn") {
+  if (batch.action === "withdrawn") {
     return {
       label: "Đã rút date",
       tone: "bg-orange-100 text-orange-700",
@@ -177,7 +231,7 @@ function getStockState(item) {
     };
   }
 
-  if (item.action === "notified") {
+  if (batch.action === "notified") {
     return {
       label: "Đã báo NCC",
       tone: "bg-amber-100 text-amber-700",
@@ -230,8 +284,14 @@ function StripeBar() {
 
 function InventoryCard({ item, onOpen }) {
   const state = getStockState(item);
+  const batch = getLatestBatch(item);
+  const batches = normalizeBatches(item);
+  const totalQuantity = batches.reduce(
+    (sum, currentBatch) => sum + (Number(currentBatch.quantity) || 0),
+    0,
+  );
   const variants = item.size ? [item.size] : [];
-  const isDestroyed = item.action === "destroyed";
+  const isDestroyed = batch.action === "destroyed";
 
   return (
     <article
@@ -271,15 +331,16 @@ function InventoryCard({ item, onOpen }) {
         </h3>
         <div className="mt-2 grid grid-cols-[minmax(48px,0.6fr)_minmax(0,1.4fr)] gap-1.5 text-[9px] font-semibold text-stone-700 sm:gap-2 sm:text-[12px]">
           <div className="min-w-0 truncate rounded border border-stone-200 bg-stone-50 px-2 py-2">
-            SL: <span className="font-black text-black">{item.quantity || "-"}</span>
+            SL: <span className="font-black text-black">{totalQuantity || batch.quantity || "-"}</span>
           </div>
           <div className="min-w-0 whitespace-nowrap rounded border border-stone-200 bg-stone-50 p-2 text-[10px]">
-            <span className="font-black text-black">{toDisplayDate(item.expiryDate)}</span>
+            <span className="font-black text-black">{toDisplayDate(batch.expiryDate)}</span>
+            {batches.length > 1 && <span className="ml-1 text-[9px] text-[#007A3D]">+{batches.length - 1}</span>}
           </div>
         </div>
-        {item.supplierName && (
+        {batch.supplierName && (
           <div className="mt-2 rounded border-2 border-dashed border-stone-300 bg-stone-50 px-2 py-2 text-[10px] font-black uppercase text-stone-600">
-            <span className="block min-w-0 truncate">{item.supplierName}</span>
+            <span className="block min-w-0 truncate">{batch.supplierName}</span>
           </div>
         )}
       </div>
@@ -480,7 +541,8 @@ function InventoryCard({ item, onOpen }) {
 
 function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldChange, onAutoDate }) {
   const state = getStockState(item);
-  const canProcess = Boolean(item.expiryDate) && item.quantity !== "";
+  const batch = getLatestBatch(item);
+  const canProcess = Boolean(batch.expiryDate) && batch.quantity !== "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch" role="dialog" aria-modal="true" aria-label={`Chỉnh thông tin ${item.name}`}>
@@ -512,38 +574,38 @@ function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldCha
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Số lượng</span>
-              <input type="number" min="0" value={item.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-base" />
+              <input type="number" min="0" value={batch.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-base" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">HSD</span>
-              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={item.expiryDateInput ?? toInputDate(item.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
+              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={batch.expiryDateInput ?? toInputDate(batch.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
             </label>
           </div>
 
           <label className="block">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Nhà cung cấp</span>
-            <input type="text" value={item.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
+            <input type="text" value={batch.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
           </label>
 
           <div className="rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
             <p className="text-[10px] font-black uppercase tracking-wider text-black">Date NCC</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <input type="number" min="0" value={item.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" aria-label="Số ngày báo trước" />
-              <select value={item.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-1 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-2 sm:text-sm" aria-label="Đơn vị báo trước">
+              <input type="number" min="0" value={batch.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" aria-label="Số ngày báo trước" />
+              <select value={batch.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-1 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-2 sm:text-sm" aria-label="Đơn vị báo trước">
                 <option value="day">Ngày</option>
                 <option value="month">Tháng</option>
                 <option value="year">Năm</option>
               </select>
             </div>
-            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!item.expiryDate} className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-white px-2 text-[10px] font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:gap-2 sm:px-3 sm:text-xs">
+            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!batch.expiryDate} className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-white px-2 text-[10px] font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:gap-2 sm:px-3 sm:text-xs">
               <CalendarClock size={15} /> Tự tính ngày báo NCC
             </button>
-            <p className="mt-2 text-xs font-bold text-stone-600">Ngày báo: {toDisplayDate(item.supplierReminderDate)}</p>
+            <p className="mt-2 text-xs font-bold text-stone-600">Ngày báo: {toDisplayDate(batch.supplierReminderDate)}</p>
           </div>
 
           <label className="block">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Ghi chú xử lý</span>
-            <textarea value={item.note ?? ""} onChange={(event) => onFieldChange(item.id, "note", event.target.value)} placeholder="Lý do, tình trạng hàng, phản hồi NCC..." rows="3" className="w-full resize-none rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
+            <textarea value={batch.note ?? ""} onChange={(event) => onFieldChange(item.id, "note", event.target.value)} placeholder="Lý do, tình trạng hàng, phản hồi NCC..." rows="3" className="w-full resize-none rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
           </label>
 
           <div className="grid grid-cols-3 gap-1 [&>button]:whitespace-nowrap [&>button]:px-1 [&>button]:py-2 [&>button]:text-[9px] sm:gap-2 sm:[&>button]:px-3 sm:[&>button]:py-3 sm:[&>button]:text-xs">
@@ -595,6 +657,7 @@ export default function TonKho() {
     productCatalog[0].categories[0].id,
   );
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [filter, setFilter] = useState("all");
   const [expiryRange, setExpiryRange] = useState("all");
   const [customExpiryValue, setCustomExpiryValue] = useState(1);
@@ -607,43 +670,72 @@ export default function TonKho() {
   }, [inventory]);
 
   const activeGroup =
-    productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
+    groupId === ALL_GROUP_ID
+      ? { id: ALL_GROUP_ID, name: "Tất cả", categories: [] }
+      : productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
   const activeCategory =
     activeGroup.categories.find((category) => category.id === categoryId) ??
-    activeGroup.categories[0];
+    activeGroup.categories[0] ?? null;
   const editingItem = inventory.find((item) => item.id === editingItemId) ?? null;
 
+  const searchIndex = useMemo(() => {
+    return new Map(
+      inventory.map((item) => [
+        item.id,
+        normalizeSearchText([
+          item.name,
+          item.groupName,
+          item.categoryName,
+          item.note,
+          ...normalizeBatches(item).flatMap((batch) => [
+            batch.supplierName,
+            batch.note,
+            batch.expiryDate,
+            batch.expiryDateInput,
+            batch.action,
+          ]),
+        ].join(" ")),
+      ]),
+    );
+  }, [inventory]);
+
   useEffect(() => {
-    setCategoryId(activeGroup.categories[0].id);
-    setQuery("");
+    setCategoryId(activeGroup.categories[0]?.id ?? "");
     setFilter("all");
     setExpiryRange("all");
   }, [activeGroup.id]);
 
   const visibleItems = useMemo(() => {
-    const keyword = query.trim().toLocaleLowerCase("vi");
+    const keywords = normalizeSearchText(deferredQuery).split(" ").filter(Boolean);
 
     return inventory
-      .filter((item) => item.groupId === activeGroup.id)
-      .filter((item) => item.categoryId === activeCategory.id)
       .filter((item) => {
-        if (!keyword) return true;
-        return (
-          item.name.toLocaleLowerCase("vi").includes(keyword) ||
-          item.note.toLocaleLowerCase("vi").includes(keyword)
-        );
-      })
-      .filter((item) => {
-        if (filter === "all") return true;
-        if (filter === "risk") return daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 7;
-        if (filter === "urgent") return daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 3;
-        if (filter === "notified") return item.action === "notified";
-        if (filter === "withdrawn") return item.action === "withdrawn";
-        if (filter === "destroyed") return item.action === "destroyed";
+        if (keywords.length === 0) {
+          if (activeGroup.id === ALL_GROUP_ID) return true;
+          return item.groupId === activeGroup.id && item.categoryId === activeCategory?.id;
+        }
         return true;
       })
       .filter((item) => {
-        if (expiryRange === "all" || !item.expiryDate) return expiryRange === "all";
+        if (keywords.length === 0) return true;
+
+        const searchableText = searchIndex.get(item.id) ?? "";
+
+        return keywords.every((keyword) => searchableText.includes(keyword));
+      })
+      .filter((item) => {
+        if (filter === "all") return true;
+        const batch = getLatestBatch(item);
+        if (filter === "risk") return daysUntil(batch.expiryDate) !== null && daysUntil(batch.expiryDate) <= 7;
+        if (filter === "urgent") return daysUntil(batch.expiryDate) !== null && daysUntil(batch.expiryDate) <= 3;
+        if (filter === "notified") return batch.action === "notified";
+        if (filter === "withdrawn") return batch.action === "withdrawn";
+        if (filter === "destroyed") return batch.action === "destroyed";
+        return true;
+      })
+      .filter((item) => {
+        const batch = getLatestBatch(item);
+        if (expiryRange === "all" || !batch.expiryDate) return expiryRange === "all";
 
         const range = expiryRange === "custom" ? customExpiryUnit : expiryRange;
         const amount = expiryRange === "custom"
@@ -654,22 +746,26 @@ export default function TonKho() {
         const endDate = range === "day"
           ? addDays(TODAY, amount)
           : addMonths(TODAY, range === "year" ? amount * 12 : amount);
-        return parseDateKey(item.expiryDate) <= endDate;
+        return parseDateKey(batch.expiryDate) <= endDate;
       })
       .sort((a, b) => {
-        if (sortMode === "quantity") return (Number(a.quantity) || 0) - (Number(b.quantity) || 0);
+        const batchA = getLatestBatch(a);
+        const batchB = getLatestBatch(b);
+        if (sortMode === "quantity") return (Number(batchA.quantity) || 0) - (Number(batchB.quantity) || 0);
         if (sortMode === "name") return a.name.localeCompare(b.name, "vi");
-        return (daysUntil(a.expiryDate) ?? Number.MAX_SAFE_INTEGER) - (daysUntil(b.expiryDate) ?? Number.MAX_SAFE_INTEGER);
+        return (daysUntil(batchA.expiryDate) ?? Number.MAX_SAFE_INTEGER) - (daysUntil(batchB.expiryDate) ?? Number.MAX_SAFE_INTEGER);
       });
-  }, [activeCategory.id, activeGroup.id, customExpiryUnit, customExpiryValue, expiryRange, filter, inventory, query, sortMode]);
+  }, [activeCategory?.id, activeGroup.id, customExpiryUnit, customExpiryValue, deferredQuery, expiryRange, filter, inventory, searchIndex, sortMode]);
 
   const stats = useMemo(() => {
-    const relevant = inventory.filter((item) => item.groupId === activeGroup.id);
-    const urgent = relevant.filter((item) => daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 3);
-    const risk = relevant.filter((item) => daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 7);
-    const notified = relevant.filter((item) => item.action === "notified");
-    const withdrawn = relevant.filter((item) => item.action === "withdrawn");
-    const destroyed = relevant.filter((item) => item.action === "destroyed");
+    const relevant = activeGroup.id === ALL_GROUP_ID
+      ? inventory
+      : inventory.filter((item) => item.groupId === activeGroup.id);
+    const urgent = relevant.filter((item) => daysUntil(getLatestBatch(item).expiryDate) !== null && daysUntil(getLatestBatch(item).expiryDate) <= 3);
+    const risk = relevant.filter((item) => daysUntil(getLatestBatch(item).expiryDate) !== null && daysUntil(getLatestBatch(item).expiryDate) <= 7);
+    const notified = relevant.filter((item) => getLatestBatch(item).action === "notified");
+    const withdrawn = relevant.filter((item) => getLatestBatch(item).action === "withdrawn");
+    const destroyed = relevant.filter((item) => getLatestBatch(item).action === "destroyed");
 
     return {
       total: relevant.length,
@@ -678,14 +774,53 @@ export default function TonKho() {
       notified: notified.length,
       withdrawn: withdrawn.length,
       destroyed: destroyed.length,
-      totalQty: relevant.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+      totalQty: relevant.reduce((sum, item) => sum + (Number(getLatestBatch(item).quantity) || 0), 0),
     };
   }, [activeGroup.id, inventory]);
 
   const updateItem = (itemId, updater) => {
     setInventory((current) =>
       current.map((item) =>
-        item.id === itemId ? updater(item) : item,
+        item.id === itemId
+          ? (() => {
+              const updatedItem = updater(item);
+              const batches = normalizeBatches(updatedItem);
+              const lastIndex = batches.length - 1;
+              const latestBatch = batches[lastIndex];
+              const legacyFields = [
+                "quantity",
+                "expiryDate",
+                "expiryDateInput",
+                "supplierName",
+                "reminderValue",
+                "reminderUnit",
+                "supplierReminderDate",
+                "note",
+                "action",
+                "statusUpdatedAt",
+              ];
+              const hasLegacyUpdate = legacyFields.some((field) =>
+                Object.prototype.hasOwnProperty.call(updatedItem, field),
+              );
+
+              return hasLegacyUpdate
+                ? {
+                    ...updatedItem,
+                    batches: batches.map((batch, index) =>
+                      index === lastIndex
+                        ? legacyFields.reduce(
+                            (nextBatch, field) =>
+                              Object.prototype.hasOwnProperty.call(updatedItem, field)
+                                ? { ...nextBatch, [field]: updatedItem[field] }
+                                : nextBatch,
+                            latestBatch,
+                          )
+                        : batch,
+                    ),
+                  }
+                : updatedItem;
+            })()
+          : item,
       ),
     );
   };
@@ -851,6 +986,7 @@ export default function TonKho() {
                     onChange={(event) => setGroupId(event.target.value)}
                     className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-semibold text-black outline-none focus:bg-orange-50"
                   >
+                    <option value={ALL_GROUP_ID}>Tất cả</option>
                     {productCatalog.map((group) => (
                       <option key={group.id} value={group.id}>
                         {group.name}
@@ -859,32 +995,34 @@ export default function TonKho() {
                   </select>
                 </label>
 
-                <div
-                  className="mt-3 flex flex-wrap gap-2"
-                  role="tablist"
-                  aria-label={`Danh mục ${activeGroup.name}`}
-                >
-                  {activeGroup.categories.map((category) => {
-                    const selected = category.id === activeCategory.id;
+                {activeGroup.id !== ALL_GROUP_ID && (
+                  <div
+                    className="mt-3 flex flex-wrap gap-2"
+                    role="tablist"
+                    aria-label={`Danh mục ${activeGroup.name}`}
+                  >
+                    {activeGroup.categories.map((category) => {
+                      const selected = category.id === activeCategory?.id;
 
-                    return (
-                      <button
-                        key={category.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={selected}
-                        onClick={() => setCategoryId(category.id)}
-                        className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-tight transition ${
-                          selected
-                            ? "bg-[#EE3124] text-white shadow-[2px_2px_0_0_#000]"
-                            : "bg-white text-black hover:bg-stone-50"
-                        }`}
-                      >
-                        {category.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          onClick={() => setCategoryId(category.id)}
+                          className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-tight transition ${
+                            selected
+                              ? "bg-[#EE3124] text-white shadow-[2px_2px_0_0_#000]"
+                              : "bg-white text-black hover:bg-stone-50"
+                          }`}
+                        >
+                          {category.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
@@ -1035,7 +1173,7 @@ export default function TonKho() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-lg font-black uppercase text-black">
-                      {activeCategory.name}
+                      {activeGroup.id === ALL_GROUP_ID ? "Tất cả sản phẩm" : activeCategory?.name}
                     </h3>
                     <p className="text-sm text-stone-500">
                       {visibleItems.length} sản phẩm đang hiển thị
