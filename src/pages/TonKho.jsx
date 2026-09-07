@@ -1,821 +1,1104 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import {
   AlertTriangle,
-  BarChart3,
-  CalendarDays,
-  Check,
-  CheckSquare2,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Clock3,
+  CalendarClock,
+  CheckCircle2,
   ImageOff,
-  Milk,
-  PackageCheck,
+  Package2,
   Search,
-  Square,
+  ShieldAlert,
+  Truck,
   Trash2,
+  RotateCcw,
+  ArrowUpDown,
+  Download,
+  Settings2,
   X,
 } from "lucide-react";
 
-const GROUPS = {
-  "Vinamilk & Green Farm": [
-    "Sữa Vinamilk Không Đường 1L",
-    "Sữa Vinamilk Có Đường 1L",
-    "STTT Vinamilk Không Đường Hộp 180ml",
-    "STTT Vinamilk Có Đường Hộp 180ml",
-    "STTT Vinamilk Socola Hộp 180ml",
-    "Sữa Tươi Tiệt Trùng Vinamilk Bắp 180ml",
-    "Sữa Tươi Tách Béo Vinamilk Dưa Lưới 180ml",
-    "STTT Vinamilk Giảm Béo Chuối 180ml",
-    "Sữa Vinamilk Không Đường Túi 220ml",
-    "Sữa Vinamilk Có Đường Bịch 220ml",
-    "Sữa Cao Đạm Ít Béo VNM Green Farm 250ml",
-  ],
-  "TH True Milk": [
-    "Sữa Tươi Tiệt Trùng TH Nguyên Chất 1L",
-    "Sữa TH True Milk Ít Đường 1L",
-    "Sữa TH True Milk Nguyên Chất 180ml",
-    "Sữa TH True Milk Ít Đường 180ml",
-    "Sữa TH True Milk Có Đường 180ml",
-    "Sữa Tươi Tiệt Trùng TH Chuối 180ml",
-    "Sữa Yến Mạch TH 180ml",
-  ],
-  Binggrae: [
-    "Sữa Binggrae Chuối 200ml",
-    "Sữa Binggrae Dưa Lưới 200ml",
-    "Sữa Binggrae Khoai Môn 200ml",
-    "Sữa Binggrae Dâu Ít Đường 200ml",
-  ],
-  "Sữa hạt & thực vật": [
-    "Sữa Yến Mạch Oatside Nguyên Vị 180ml",
-    "Sữa Yến Mạch Oatside Đậm Đà 180ml",
-    "Sữa Yến Mạch Oatside Vị Socola 180ml",
-    "Sữa Yến Mạch Oatbedient Nguyên Bản 140g",
-    "Sữa Yến Mạch Oatbedient Socola 175g",
-    "Sữa Vinamilk Super Nut Hộp 180ml",
-    "Sữa Đậu Nành Vinamilk Hạnh Nhân 180ml",
-    "Sữa Đậu Nành Vinamilk Đậu Đỏ 180ml",
-    "Sữa Đậu Nành Fami Hộp 200ml",
-    "Sữa Bắp Non LOF Canxi Hộp 180ml",
-  ],
-  "Milo, Ovaltine & Chocolate": [
-    "Milo Sữa Lúa Mạch 180ml",
-    "Sữa Lúa Mạch Milo Ít Đường 180ml",
-    "Sữa Lúa Mạch Milo A2 180ml",
-    "Sữa Lúa Mạch Nestle Milo Pro 220ml",
-    "Sữa Lúa Mạch Nestle Milo Cà Phê 220ml",
-    "Sữa Lúa Mạch Ovaltine Vị Sô Cô La 180ml",
-    "Thức Uống SCL Hershey's Bánh Quy Kem 235ml",
-    "Thức Uống Sô Cô La Hershey's 235ml",
-  ],
-  "Dinh dưỡng & loại khác": [
-    "Sữa Nước Ensure Vani 237ml",
-    "Sữa Nước Ensure Gold 237ml",
-    "Sữa Tiệt Trùng Anlene Không Lactose 180ml",
-    "STTT Anlene Không Lactose Hạnh Nhân 180ml",
-    "Sữa Tươi Tiệt Trùng CGHL Ít Đường 180ml",
-    "Sữa Gấu Nestle Lon 140ml",
-    "Sữa Metis Lúa Mạch Thạch 180ml",
-    "Sữa Trái Cây Metis Hương Nho 180ml",
-    "Đà Lạt Milk Sữa Thanh Trùng 950ml",
-    "Sữa Đậu Nành Ichiban Chai 350ml - T9",
-    "Sữa Đậu Nành Ichiban Đậu Đỏ Đậu Xanh 350ml - T9",
-    "Sữa Thanh Trùng DalatMilk 450ml",
-    "Sữa Bắp Thanh Trùng Ladallas Chai 300ml",
-    "Sữa Đậu Nành Ichiban Chai 350ml",
-    "Sữa Thanh Trùng Meiji Chuối 200ml",
-    "Sữa Thanh Trùng Meiji Dưa Lưới 200ml",
-    "Sữa Thanh Trùng Meiji Không Lactose 200ml",
-    "Sữa Thanh Trùng Dalat Milk Ít Đường 180ml",
-    "Sữa Thanh Trùng Nguyên Chất Mộc Châu 450ml",
-    "Sữa Thanh Trùng Lothamilk Có Đường 473ml",
-  ],
-};
+import { productCatalog } from "../data/productCatalog";
 
-const slugify = (text) =>
-  text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-const CATALOG = Object.entries(GROUPS).flatMap(([group, names], groupIndex) =>
-  names.map((name, index) => ({
-    id: `${groupIndex + 1}-${index + 1}`,
-    name,
-    group,
-    image: `/products/milk/${slugify(name)}.png`,
-  })),
-);
+const STORAGE_KEY = "tonKhoInventoryV2";
+const TODAY = new Date();
 
-const DAY = 86400000;
-const formatDateInput = (value) =>
-  value
-    .replace(/\D/g, "")
-    .slice(0, 8)
-    .replace(/^(\d{2})(\d)/, "$1/$2")
-    .replace(/^(\d{2}\/\d{2})(\d)/, "$1/$2");
-const parseDateInput = (value) => {
-  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return null;
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseDateKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date, amount) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function addMonths(date, amount) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + amount);
+  return next;
+}
+
+function toDisplayDate(dateKey) {
+  if (!dateKey) return "-";
+  return parseDateKey(dateKey).toLocaleDateString("vi-VN");
+}
+
+function toInputDate(dateKey) {
+  if (!dateKey) return "";
+  const date = parseDateKey(dateKey);
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
+}
+
+function parseInputDate(value) {
+  const digits = value.replace(/\D/g, "");
+  const normalized = digits.length === 8
+    ? `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`
+    : value.trim();
+  const match = normalized.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!match) return "";
+
   const [, day, month, year] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   if (
     date.getFullYear() !== Number(year) ||
     date.getMonth() !== Number(month) - 1 ||
     date.getDate() !== Number(day)
-  )
-    return null;
-  return `${year}-${month}-${day}`;
-};
-const getDays = (date) =>
-  Math.ceil(
-    (new Date(`${date}T00:00:00`) - new Date(new Date().toDateString())) / DAY,
-  );
-const getState = (date) => {
-  const days = getDays(date);
-  if (days < 0)
+  ) {
+    return "";
+  }
+
+  return formatDateKey(date);
+}
+
+function normalizeNumberInput(value) {
+  return value.replace(/^0+(?=\d)/, "");
+}
+
+function daysUntil(dateKey) {
+  if (!dateKey) return null;
+  const target = parseDateKey(dateKey);
+  const diff = target.getTime() - TODAY.getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24));
+}
+
+function calculateSupplierReminderDate(expiryDate, reminderValue, reminderUnit) {
+  if (!expiryDate) return "";
+  const value = Math.max(0, Number(reminderValue) || 0);
+  const days = reminderUnit === "year" ? value * 365 : reminderUnit === "month" ? value * 30 : value;
+  return formatDateKey(addDays(parseDateKey(expiryDate), -days));
+}
+
+function buildInventorySeed() {
+  const products = [];
+
+  productCatalog.forEach((group) => {
+    group.categories.forEach((category) => {
+      category.products.forEach((product) => {
+        const variants = product.variants ?? [product];
+        const primaryVariant = variants[0];
+        products.push({
+          id: product.id ?? `${group.id}-${category.id}-${productIndex}`,
+          groupId: group.id,
+          groupName: group.name,
+          categoryId: category.id,
+          categoryName: category.name,
+          name: product.name,
+          image: primaryVariant.image ?? product.image ?? "",
+          price: primaryVariant.price ?? product.price ?? 0,
+          size: primaryVariant.size ?? null,
+          quantity: "",
+          expiryDate: "",
+          expiryDateInput: "",
+          supplierName: "",
+          reminderValue: 3,
+          reminderUnit: "day",
+          supplierReminderDate: "",
+          note: "",
+          action: "normal",
+          statusUpdatedAt: formatDateKey(TODAY),
+        });
+      });
+    });
+  });
+
+  return products;
+}
+
+function loadInventory() {
+  const seed = buildInventorySeed();
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return seed;
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return seed;
+
+    const map = new Map(parsed.map((item) => [item.id, item]));
+    return seed.map((item) => ({ ...item, ...map.get(item.id) }));
+  } catch {
+    return seed;
+  }
+}
+
+function getStockState(item) {
+  const remaining = daysUntil(item.expiryDate);
+
+  if (!item.expiryDate) {
     return {
-      label: "Đã hết hạn",
-      className: "bg-red-50 text-[#e2231a] border-red-200",
+      label: "Chưa kiểm date",
+      tone: "bg-slate-100 text-slate-700",
+      detail: "Nhập số lượng và HSD khi đi kiểm hàng",
     };
-  if (days <= 7)
+  }
+
+  if (item.action === "destroyed") {
     return {
-      label: days === 0 ? "Hết hạn hôm nay" : `Còn ${days} ngày`,
-      className: "bg-orange-50 text-[#dc6b0d] border-orange-200",
+      label: "Đã hủy",
+      tone: "bg-slate-100 text-slate-700",
+      detail: "Đã loại khỏi quầy",
     };
-  if (days <= 30)
+  }
+
+  if (item.action === "withdrawn") {
     return {
-      label: `Còn ${days} ngày`,
-      className: "bg-amber-50 text-amber-700 border-amber-200",
+      label: "Đã rút date",
+      tone: "bg-orange-100 text-orange-700",
+      detail: "Đã chuyển xử lý nội bộ",
     };
+  }
+
+  if (item.action === "notified") {
+    return {
+      label: "Đã báo NCC",
+      tone: "bg-amber-100 text-amber-700",
+      detail: "Đang chờ phản hồi nhà cung cấp",
+    };
+  }
+
+  if (remaining < 0) {
+    return {
+      label: "Quá hạn",
+      tone: "bg-red-100 text-red-700",
+      detail: `Quá hạn ${Math.abs(remaining)} ngày`,
+    };
+  }
+
+  if (remaining <= 3) {
+    return {
+      label: "Sắp hết hạn",
+      tone: "bg-red-100 text-red-700",
+      detail: `Còn ${remaining} ngày`,
+    };
+  }
+
+  if (remaining <= 7) {
+    return {
+      label: "Cần theo dõi",
+      tone: "bg-orange-100 text-orange-700",
+      detail: `Còn ${remaining} ngày`,
+    };
+  }
+
   return {
-    label: "Còn hạn",
-    className: "bg-emerald-50 text-[#008c45] border-emerald-200",
+    label: "An toàn",
+    tone: "bg-emerald-100 text-emerald-700",
+    detail: `Còn ${remaining} ngày`,
   };
-};
-
-export default function HanSuDung() {
-  const [search, setSearch] = useState("");
-  const [activeGroup, setActiveGroup] = useState("Tất cả");
-  const [selected, setSelected] = useState(null);
-  const [quantity, setQuantity] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [tracked, setTracked] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [overviewRange, setOverviewRange] = useState("all");
-  const [overviewMonth, setOverviewMonth] = useState("");
-  const [isProductPickerOpen, setIsProductPickerOpen] = useState(true);
-  const [isSelectingRows, setIsSelectingRows] = useState(false);
-  const [selectedRows, setSelectedRows] = useState([]);
-
-  const products = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return CATALOG.filter(
-      (p) => activeGroup === "Tất cả" || p.group === activeGroup,
-    ).filter((p) => !q || p.name.toLowerCase().includes(q));
-  }, [search, activeGroup]);
-
-  const sortedTracked = useMemo(
-    () => [...tracked].sort((a, b) => new Date(a.expiry) - new Date(b.expiry)),
-    [tracked],
-  );
-  const overviewProducts = useMemo(
-    () =>
-      sortedTracked.filter((item) => {
-        if (overviewMonth) return item.expiry.startsWith(overviewMonth);
-        if (overviewRange === "all") return true;
-        return getDays(item.expiry) <= Number(overviewRange);
-      }),
-    [sortedTracked, overviewRange, overviewMonth],
-  );
-  const urgent = tracked.filter((p) => getDays(p.expiry) <= 7).length;
-  const totalQuantity = tracked.reduce((sum, p) => sum + p.quantity, 0);
-
-  const choose = (product) => {
-    setSelected(product);
-    setQuantity("");
-    setExpiry("");
-    setErrors({});
-  };
-
-  const save = (event) => {
-    event.preventDefault();
-    const next = {};
-    const parsedExpiry = parseDateInput(expiry);
-    if (!quantity || Number(quantity) <= 0)
-      next.quantity = "Nhập số lượng lớn hơn 0";
-    if (!expiry) next.expiry = "Nhập hạn sử dụng";
-    else if (!parsedExpiry)
-      next.expiry = "Ngày không hợp lệ, nhập theo dd/mm/yyyy";
-    if (Object.keys(next).length) return setErrors(next);
-    setTracked((current) => [
-      ...current,
-      {
-        ...selected,
-        rowId: Date.now(),
-        quantity: Number(quantity),
-        expiry: parsedExpiry,
-      },
-    ]);
-    setSelected(null);
-  };
-
-  const removeTracked = (rowId) => {
-    setTracked((current) => current.filter((item) => item.rowId !== rowId));
-    setSelectedRows((current) => current.filter((id) => id !== rowId));
-  };
-
-  const toggleRow = (rowId) =>
-    setSelectedRows((current) =>
-      current.includes(rowId)
-        ? current.filter((id) => id !== rowId)
-        : [...current, rowId],
-    );
-  const exitSelectionMode = () => {
-    setIsSelectingRows(false);
-    setSelectedRows([]);
-  };
-  const deleteSelectedRows = () => {
-    setTracked((current) =>
-      current.filter((item) => !selectedRows.includes(item.rowId)),
-    );
-    exitSelectionMode();
-  };
-
-  return (
-    <div className="mx-auto max-w-[1500px] space-y-3 px-3 pb-24 text-slate-900 sm:space-y-5 sm:px-4 sm:pb-10 lg:px-0">
-      <header className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm">
-        <div className="flex h-2">
-          <span className="flex-1 bg-[#f58220]" />
-          <span className="flex-1 bg-[#008c45]" />
-          <span className="flex-1 bg-[#e2231a]" />
-        </div>
-        <div className="flex flex-col gap-4 p-4 sm:p-6 md:flex-row md:items-end md:justify-between lg:p-8">
-          <div className="flex gap-3 sm:gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#008c45] text-white sm:h-14 sm:w-14">
-              <Milk size={26} />
-            </span>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[.2em] text-[#008c45]">
-                7-Eleven · Nhóm ngành sữa
-              </p>
-              <h1 className="mt-1 text-2xl font-black uppercase leading-tight text-[#e2231a] sm:text-3xl md:text-4xl">
-                 hạn sử dụng
-              </h1>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
-            <MiniStat
-              icon={PackageCheck}
-              value={tracked.length}
-              label="Sản phẩm đã nhập"
-            />
-            <MiniStat
-              icon={AlertTriangle}
-              value={urgent}
-              label="Cần xử lý sớm"
-              danger
-            />
-          </div>
-        </div>
-      </header>
-
-      <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-  {/* Thanh tiêu đề */}
-  <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
-    <button
-      type="button"
-      onClick={() => setIsProductPickerOpen((value) => !value)}
-      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-      aria-expanded={isProductPickerOpen}
-    >
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#008c45] text-white">
-        <Milk size={21} />
-      </span>
-
-      <span className="min-w-0">
-        <span className="block text-lg font-black uppercase">
-          Danh sách sản phẩm
-        </span>
-      </span>
-    </button>
-
-    <button
-      type="button"
-      onClick={() => setIsProductPickerOpen((value) => !value)}
-      aria-label={
-        isProductPickerOpen
-          ? 'Thu gọn danh sách sản phẩm'
-          : 'Mở rộng danh sách sản phẩm'
-      }
-      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-[#008c45] hover:bg-emerald-50 hover:text-[#008c45]"
-    >
-      {isProductPickerOpen ? (
-        <ChevronUp size={21} />
-      ) : (
-        <ChevronDown size={21} />
-      )}
-    </button>
-  </div>
-
-  {/* Nội dung danh sách */}
-  {isProductPickerOpen && (
-    <div>
-      {/* Tìm kiếm và lọc nhóm */}
-      <div className="border-b border-slate-100 bg-slate-50/70 p-3 sm:p-5">
-        <label className="relative block w-full">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-bold outline-none transition focus:border-[#008c45] focus:ring-4 focus:ring-emerald-50"
-            placeholder="Tìm nhanh theo tên sản phẩm..."
-          />
-        </label>
-
-        <div className="-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
-          {['Tất cả', ...Object.keys(GROUPS)].map((group) => (
-            <button
-              key={group}
-              type="button"
-              onClick={() => setActiveGroup(group)}
-              className={`shrink-0 snap-start rounded-xl border px-3.5 py-2.5 text-xs font-black transition ${
-                activeGroup === group
-                  ? 'border-[#008c45] bg-[#008c45] text-white shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-[#008c45]'
-              }`}
-            >
-              {group}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Không giới hạn chiều cao và không có scroll riêng */}
-      <div className="grid grid-cols-2 gap-2.5 bg-[#f7f8f6] p-3 sm:gap-4 sm:p-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {products.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            onChoose={choose}
-          />
-        ))}
-
-        {products.length === 0 && (
-          <div className="col-span-full grid place-items-center py-20 text-center">
-            <Search size={38} className="mb-3 text-slate-300" />
-            <b>Không tìm thấy sản phẩm</b>
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-</section>
-
-      <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-        {/* Tiêu đề và bộ lọc */}
-        <div className="border-b border-slate-100 p-4 sm:p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-[#008c45]">
-                <BarChart3 size={21} />
-              </span>
-
-              <div>
-
-                <h2 className="mt-1 text-xl font-black uppercase">
-                  Tổng quan sản phẩm đã ghi date
-                </h2>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Theo dõi tất cả sản phẩm theo khoảng hạn sử dụng.
-                </p>
-              </div>
-            </div>
-
-            <div className="min-w-0 space-y-3 sm:flex sm:flex-wrap sm:items-end sm:gap-2 sm:space-y-0">
-              {/* Lọc theo số ngày */}
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:px-0">
-                {[
-                  ["all", "Tất cả"],
-                  ["7", "≤ 7 ngày"],
-                  ["30", "≤ 30 ngày"],
-                  ["180", "≤ 6 tháng"],
-                  ["365", "≤ 1 năm"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setOverviewRange(value);
-                      setOverviewMonth("");
-                    }}
-                    className={`min-h-10 shrink-0 rounded-xl px-3.5 py-2 text-xs font-black transition ${
-                      overviewRange === value && !overviewMonth
-                        ? "bg-[#008c45] text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Lọc theo tháng */}
-              <label className="block sm:w-auto">
-                <span className="mb-1 block text-[10px] font-black uppercase text-slate-400">
-                  Chọn tháng HSD
-                </span>
-
-                <input
-                  type="month"
-                  value={overviewMonth}
-                  onChange={(e) => {
-                    setOverviewMonth(e.target.value);
-                    setOverviewRange("all");
-                  }}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-[#008c45] sm:h-10 sm:w-auto sm:text-xs"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Bảng tổng quan */}
-        <div>
-          <div className="grid gap-3 bg-slate-50/60 p-3 md:hidden">
-            {overviewProducts.map((item) => (
-              <OverviewCard
-                key={item.rowId}
-                item={item}
-                onRemove={() => removeTracked(item.rowId)}
-              />
-            ))}
-          </div>
-          <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[850px] text-left text-sm">
-            <thead className="bg-[#f4f7f5] text-[10px] font-black uppercase tracking-[.13em] text-slate-500">
-              <tr>
-                <th className="px-5 py-4">Sản phẩm</th>
-                <th className="px-4 py-4">Nhóm</th>
-                <th className="px-4 py-4 text-center">Số lượng</th>
-                <th className="px-4 py-4">Hạn sử dụng</th>
-                <th className="px-4 py-4">Trạng thái</th>
-                <th className="px-4 py-4 text-right">Thao tác</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {overviewProducts.map((item) => (
-                <OverviewRow
-                  key={item.rowId}
-                  item={item}
-                  onRemove={() => removeTracked(item.rowId)}
-                />
-              ))}
-            </tbody>
-          </table>
-          </div>
-
-          {overviewProducts.length === 0 && (
-            <div className="grid place-items-center py-14 text-center">
-              <Clock3 size={38} className="mb-3 text-slate-200" />
-
-              <p className="font-black text-slate-500">
-                Không có sản phẩm trong mốc đã chọn
-              </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setOverviewRange("all");
-                  setOverviewMonth("");
-                }}
-                className="mt-2 text-xs font-black text-[#008c45]"
-              >
-                Xem tất cả
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Thống kê cuối bảng */}
-        <div className="flex flex-col gap-1 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:justify-between sm:px-5 sm:py-4">
-          <span>
-            Hiển thị <b className="text-slate-800">{overviewProducts.length}</b>{" "}
-            sản phẩm
-          </span>
-
-          <span>
-            Tổng số lượng:{" "}
-            <b className="text-[#008c45]">
-              {overviewProducts.reduce((sum, item) => sum + item.quantity, 0)}
-            </b>
-          </span>
-        </div>
-      </section>
-
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:grid sm:place-items-center sm:p-4"
-          onMouseDown={(e) => e.target === e.currentTarget && setSelected(null)}
-        >
-          <form
-            onSubmit={save}
-            className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[26px] bg-white shadow-2xl sm:rounded-[26px]"
-          >
-            <div className="flex h-1.5">
-              <i className="flex-1 bg-[#f58220]" />
-              <i className="flex-1 bg-[#008c45]" />
-              <i className="flex-1 bg-[#e2231a]" />
-            </div>
-            <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
-              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden" />
-              <div className="flex items-start gap-3 sm:gap-4">
-                <ProductImage
-                  product={selected}
-                  className="h-20 w-20 shrink-0 rounded-2xl border sm:h-24 sm:w-24"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase tracking-wider text-[#008c45]">
-                    Nhập thông tin
-                  </p>
-                  <h3 className="mt-1 line-clamp-3 text-base font-black leading-tight sm:text-xl">
-                    {selected.name}
-                  </h3>
-                  <p className="mt-2 text-xs text-slate-400">
-                    {selected.group}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelected(null)}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-              <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2">
-                <Field label="Số lượng *" error={errors.quantity}>
-                  <input
-                    autoFocus
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => {
-                      setQuantity(e.target.value);
-                      setErrors((x) => ({ ...x, quantity: "" }));
-                    }}
-                    className={inputClass(errors.quantity)}
-                    placeholder="0"
-                  />
-                </Field>
-                <Field label="Hạn sử dụng *" error={errors.expiry}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={expiry}
-                    onChange={(e) => {
-                      setExpiry(formatDateInput(e.target.value));
-                      setErrors((x) => ({ ...x, expiry: "" }));
-                    }}
-                    className={inputClass(errors.expiry)}
-                    placeholder="dd/mm/yyyy"
-                  />
-                </Field>
-              </div>
-              <button className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#008c45] py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-100 sm:mt-6">
-                <Check size={18} /> Xác nhận nhập HSD
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
-  );
 }
 
-function ProductCard({ product, onChoose }) {
+function StripeBar() {
   return (
-    <button
-      type="button"
-      onClick={() => onChoose(product)}
-      aria-label={`Nhập thông tin ${product.name}`}
-      className="group flex min-w-0 flex-col overflow-hidden rounded-[16px] border border-slate-200 bg-white text-left transition duration-200 active:scale-[.98] sm:rounded-[18px] sm:hover:-translate-y-1 sm:hover:border-[#008c45] sm:hover:shadow-[0_14px_35px_rgba(0,140,69,.14)] focus:outline-none focus:ring-4 focus:ring-emerald-100"
-    >
-      {/* Hình sản phẩm */}
-      <div className="m-2 mb-0 aspect-square overflow-hidden rounded-[12px] bg-gradient-to-br from-white to-slate-100 p-2 sm:m-3 sm:mb-0 sm:rounded-[14px] sm:p-3">
-        <ProductImage
-          product={product}
-          className="h-full w-full transition duration-300 group-hover:scale-105"
-        />
-      </div>
-
-      {/* Chỉ hiển thị tên sản phẩm */}
-      <div className="p-2.5 sm:p-3.5">
-        <p className="line-clamp-3 min-h-[3.5rem] text-center text-xs font-black leading-[1.35] text-slate-800 transition group-hover:text-[#008c45] sm:line-clamp-2 sm:min-h-11 sm:text-sm">
-          {product.name}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function OverviewCard({ item, onRemove }) {
-  const state = getState(item.expiry);
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex gap-3">
-        <ProductImage
-          product={item}
-          className="h-16 w-16 shrink-0 rounded-xl bg-slate-50"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-black leading-5">{item.name}</p>
-          <p className="mt-1 truncate text-[11px] font-bold text-slate-400">
-            {item.group}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-red-50 text-[#e2231a] active:scale-95"
-          aria-label={`Xóa ${item.name}`}
-        >
-          <Trash2 size={17} />
-        </button>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-        <div>
-          <span className="block text-[10px] font-black uppercase text-slate-400">Hạn sử dụng</span>
-          <b className="mt-1 block text-sm">
-            {new Date(`${item.expiry}T00:00:00`).toLocaleDateString("vi-VN")}
-          </b>
-        </div>
-        <div className="text-right">
-          <span className="block text-[10px] font-black uppercase text-slate-400">Số lượng</span>
-          <b className="mt-1 block text-lg text-[#008c45]">{item.quantity}</b>
-        </div>
-      </div>
-      <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black ${state.className}`}>
-        {state.label}
-      </span>
-    </article>
-  );
-}
-
-function TodayCard({ item, onRemove }) {
-  const state = getState(item.expiry);
-  return (
-    <div className="flex gap-3 rounded-2xl border border-slate-200 p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30">
-      <ProductImage
-        product={item}
-        className="h-20 w-20 shrink-0 rounded-xl bg-slate-50"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-sm font-black leading-5">{item.name}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-black">
-            SL {item.quantity}
-          </span>
-          <span
-            className={`rounded-full border px-2 py-1 text-[10px] font-black ${state.className}`}
-          >
-            {state.label}
-          </span>
-        </div>
-        <p className="mt-2 text-[11px] font-bold text-slate-400">
-          HSD {new Date(`${item.expiry}T00:00:00`).toLocaleDateString("vi-VN")}
-        </p>
-      </div>
-      <button
-        onClick={onRemove}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500"
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
-}
-
-function OverviewRow({ item, selecting, selected, onToggle, onRemove }) {
-  const state = getState(item.expiry);
-  return (
-    <tr
-      onClick={selecting ? onToggle : undefined}
-      className={`border-t border-slate-100 transition ${selecting ? "cursor-pointer" : ""} ${selected ? "bg-red-50/70" : "hover:bg-slate-50"}`}
-    >
-      {selecting && (
-        <td className="px-4 py-4">
-          {selected ? (
-            <CheckSquare2 size={19} className="text-[#e2231a]" />
-          ) : (
-            <Square size={19} className="text-slate-300" />
-          )}
-        </td>
-      )}
-      <td className="px-5 py-4">
-        <div className="flex items-center gap-3">
-          <ProductImage
-            product={item}
-            className="h-12 w-12 shrink-0 rounded-xl bg-slate-50"
-          />
-          <b>{item.name}</b>
-        </div>
-      </td>
-      <td className="px-4 py-4 text-slate-500">{item.group}</td>
-      <td className="px-4 py-4 text-center text-lg font-black">
-        {item.quantity}
-      </td>
-      <td className="px-4 py-4 font-black">
-        {new Date(`${item.expiry}T00:00:00`).toLocaleDateString("vi-VN")}
-      </td>
-      <td className="px-4 py-4">
-        <span
-          className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${state.className}`}
-        >
-          {state.label}
-        </span>
-      </td>
-      <td className="px-4 py-4 text-right">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-          className="inline-grid h-9 w-9 place-items-center rounded-xl border border-red-100 text-red-400 transition hover:bg-red-50 hover:text-[#e2231a]"
-          aria-label={`Xóa ${item.name}`}
-        >
-          <Trash2 size={16} />
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-function ProductImage({ product, className }) {
-  const [failed, setFailed] = useState(false);
-  if (failed)
-    return (
-      <div
-        className={`grid place-items-center bg-gradient-to-br from-emerald-50 to-orange-50 text-slate-300 ${className}`}
-      >
-        <div className="text-center">
-          <ImageOff className="mx-auto" size={24} />
-          <span className="mt-1 block text-[8px] font-bold">THÊM ẢNH</span>
-        </div>
-      </div>
-    );
-  return (
-    <img
-      src={product.image}
-      alt={product.name}
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className={`object-contain ${className}`}
+    <div
+      className="h-2 w-full"
+      style={{
+        background:
+          "repeating-linear-gradient(-35deg, #FF8200 0 22px, #EE3124 22px 44px, #007A3D 44px 66px)",
+      }}
     />
   );
 }
 
-function MiniStat({ icon: Icon, value, label, danger }) {
+function InventoryCard({ item, onOpen }) {
+  const state = getStockState(item);
+  const variants = item.size ? [item.size] : [];
+  const isDestroyed = item.action === "destroyed";
+
   return (
-    <div
-      className={`min-w-0 rounded-2xl border p-3 sm:min-w-32 ${danger ? "border-red-100 bg-red-50" : "border-emerald-100 bg-emerald-50"}`}
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(item.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(item.id);
+        }
+      }}
+      className="group min-w-0 cursor-pointer overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#008061] focus:outline-none focus:ring-4 focus:ring-[#FF8200]/40"
     >
-      <div className="flex items-center gap-2">
-        <Icon
-          size={16}
-          className={danger ? "text-[#e2231a]" : "text-[#008c45]"}
-        />
-        <b className="text-xl">{value}</b>
+      <div className="relative aspect-[4/3] overflow-hidden bg-white">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+            className={`h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
+              isDestroyed ? "opacity-40 grayscale" : ""
+            }`}
+          />
+        ) : (
+          <div className="grid h-full place-items-center text-stone-300">
+            <ImageOff size={26} />
+          </div>
+        )}
+        <div className={`absolute right-1.5 top-1.5 whitespace-nowrap rounded px-1.5 py-1 text-[8px] font-black uppercase ${state.tone} sm:right-2 sm:top-2 sm:px-2 sm:text-[9px]`}>
+          {state.label}
+        </div>
       </div>
-      <p className="mt-1 text-[10px] font-bold text-slate-500">{label}</p>
+      <div className="min-w-0 border-t-2 border-[#008061] px-2 py-2 sm:px-2.5">
+        <h3 className="line-clamp-2 min-h-8 text-[11px] font-bold uppercase leading-4 tracking-tight text-black sm:text-sm">
+          {item.name}
+        </h3>
+        <div className="mt-2 grid grid-cols-[minmax(48px,0.6fr)_minmax(0,1.4fr)] gap-1.5 text-[9px] font-semibold text-stone-700 sm:gap-2 sm:text-[12px]">
+          <div className="min-w-0 truncate rounded border border-stone-200 bg-stone-50 px-2 py-2">
+            SL: <span className="font-black text-black">{item.quantity || "-"}</span>
+          </div>
+          <div className="min-w-0 whitespace-nowrap rounded border border-stone-200 bg-stone-50 p-2 text-[10px]">
+            <span className="font-black text-black">{toDisplayDate(item.expiryDate)}</span>
+          </div>
+        </div>
+        {item.supplierName && (
+          <div className="mt-2 rounded border-2 border-dashed border-stone-300 bg-stone-50 px-2 py-2 text-[10px] font-black uppercase text-stone-600">
+            <span className="block min-w-0 truncate">{item.supplierName}</span>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+
+  return (
+    <article className="group min-w-0 overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#008061]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-white">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+            className={`h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
+              isDestroyed ? "opacity-40 grayscale" : ""
+            }`}
+          />
+        ) : (
+          <div className="grid h-full place-items-center text-stone-300">
+            <ImageOff size={26} />
+          </div>
+        )}
+
+        <div className="absolute left-2 top-2 max-w-[46%] truncate rounded bg-black/80 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+          {item.groupName}
+        </div>
+
+        <div className={`absolute right-2 top-2 max-w-[46%] truncate rounded px-2 py-1 text-[10px] font-black uppercase ${state.tone}`}>
+          {state.label}
+        </div>
+      </div>
+
+      <div className="min-w-0 border-t-2 border-[#008061] px-2.5 py-2">
+        <h3 className="line-clamp-2 min-h-8 text-xs font-bold uppercase leading-4 tracking-tight text-black sm:text-sm">
+          {item.name}
+        </h3>
+
+        {variants.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Kích cỡ">
+            {variants.map((variant) => (
+              <span
+                key={variant}
+                className="rounded border-2 border-black bg-white px-2 py-1 text-[11px] font-black text-black"
+              >
+                {variant}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-semibold text-stone-700">
+          <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+            SL: <span className="font-black text-black">{item.quantity || "-"}</span>
+          </div>
+          <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
+            HSD: <span className="font-black text-black">{toDisplayDate(item.expiryDate)}</span>
+          </div>
+        </div>
+
+        <div className="mt-2 text-[11px] font-bold text-stone-500">
+          <span className="inline-flex items-center gap-1">
+            <CalendarClock size={12} />
+            Báo NCC: {toDisplayDate(item.supplierReminderDate)}
+          </span>
+          <div className="mt-1">{state.detail}</div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-1.5">
+          <button
+            type="button"
+            onClick={() => onAction(item.id, "notified")}
+            disabled={!item.expiryDate || item.quantity === ""}
+            className="rounded border-2 border-black bg-amber-100 px-2 py-1 text-[11px] font-black uppercase text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Báo date NCC
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction(item.id, "withdrawn")}
+            disabled={!item.expiryDate || item.quantity === ""}
+            className="rounded border-2 border-black bg-orange-100 px-2 py-1 text-[11px] font-black uppercase text-orange-800 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Rút date
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction(item.id, "destroyed")}
+            disabled={!item.expiryDate || item.quantity === ""}
+            className="rounded border-2 border-black bg-red-100 px-2 py-1 text-[11px] font-black uppercase text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Hủy hàng
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+              Tồn
+            </span>
+            <input
+              type="number"
+              min="0"
+              value={item.quantity ?? ""}
+              onChange={(event) =>
+                onQuantityChange(item.id, normalizeNumberInput(event.target.value))
+              }
+              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+              HSD
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="dd-mm-yyyy"
+              value={item.expiryDateInput ?? toInputDate(item.expiryDate)}
+              onChange={(event) =>
+                onFieldChange(item.id, "expiryDateInput", event.target.value)
+              }
+              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50"
+            />
+          </label>
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <label className="col-span-2 block min-w-0">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+              Nhà cung cấp
+            </span>
+            <input
+              type="text"
+              value={item.supplierName ?? ""}
+              onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)}
+              placeholder="Tên NCC"
+              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50"
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+              Báo trước
+            </span>
+            <input
+              type="number"
+              min="0"
+              value={item.reminderValue ?? 3}
+              onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))}
+              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50"
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+              Đơn vị
+            </span>
+            <select
+              value={item.reminderUnit ?? "day"}
+              onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)}
+              className="h-10 w-full rounded-md border-2 border-black bg-white px-1 text-xs font-bold outline-none focus:bg-orange-50"
+            >
+              <option value="day">Ngày</option>
+              <option value="month">Tháng</option>
+              <option value="year">Năm</option>
+            </select>
+          </label>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onAutoDate(item.id)}
+          disabled={!item.expiryDate}
+          className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-[#FFF8EC] px-2 py-2 text-[11px] font-black uppercase text-black transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <CalendarClock size={13} />
+          Tự tính ngày báo NCC
+        </button>
+
+        <label className="mt-2 block">
+          <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
+            Ghi chú
+          </span>
+          <input
+            type="text"
+            value={item.note}
+            onChange={(event) =>
+              onFieldChange(item.id, "note", event.target.value)
+            }
+            placeholder="Lý do / xử lý"
+            className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-stone-400 focus:bg-orange-50"
+          />
+        </label>
+      </div>
+    </article>
+  );
+}
+
+function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldChange, onAutoDate }) {
+  const state = getStockState(item);
+  const canProcess = Boolean(item.expiryDate) && item.quantity !== "";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch" role="dialog" aria-modal="true" aria-label={`Chỉnh thông tin ${item.name}`}>
+      <button
+        type="button"
+        aria-label="Đóng chi tiết sản phẩm"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-black/40"
+      />
+      <aside className="relative flex h-[92dvh] max-h-[760px] w-full max-w-none flex-col overflow-y-auto rounded-t-[26px] border-t-2 border-black bg-[#FFFDF8] shadow-[0_-8px_0_rgba(0,0,0,0.12)] animate-[slideUp_180ms_ease-out] sm:h-full sm:max-h-none sm:max-w-md sm:rounded-t-none sm:border-l-2 sm:border-t-0 sm:shadow-[-8px_0_0_rgba(0,0,0,0.12)] sm:animate-[slideIn_180ms_ease-out]">
+        <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-stone-300 sm:hidden" />
+        <div className="flex items-start justify-between gap-3 border-b-2 border-black bg-white p-5">
+          <div className="min-w-0">
+            <h2 className="mt-1 text-lg font-black uppercase leading-6 text-black">{item.name}</h2>
+            <p className="mt-1 text-sm font-semibold text-stone-500">{item.categoryName} · {state.label}</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-md border-2 border-black bg-[#FF8200] text-white transition hover:bg-[#EE3124]" aria-label="Đóng">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061]">
+            <div className="aspect-[4/3] bg-white">
+              {item.image ? <img src={item.image} alt={item.name} className="h-full w-full object-contain p-4" /> : <div className="grid h-full place-items-center text-stone-300"><ImageOff size={32} /></div>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Số lượng</span>
+              <input type="number" min="0" value={item.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-base font-bold outline-none focus:bg-orange-50" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">HSD</span>
+              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={item.expiryDateInput ?? toInputDate(item.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-bold outline-none focus:bg-orange-50" />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Nhà cung cấp</span>
+            <input type="text" value={item.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
+          </label>
+
+          <div className="rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-black">Cấu hình báo date NCC</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <input type="number" min="0" value={item.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-bold outline-none focus:bg-orange-50" aria-label="Số ngày báo trước" />
+              <select value={item.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-11 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50" aria-label="Đơn vị báo trước">
+                <option value="day">Ngày</option>
+                <option value="month">Tháng</option>
+                <option value="year">Năm</option>
+              </select>
+            </div>
+            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!item.expiryDate} className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border-2 border-black bg-white px-3 text-xs font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40">
+              <CalendarClock size={15} /> Tự tính ngày báo NCC
+            </button>
+            <p className="mt-2 text-xs font-bold text-stone-600">Ngày báo: {toDisplayDate(item.supplierReminderDate)}</p>
+          </div>
+
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Ghi chú xử lý</span>
+            <textarea value={item.note ?? ""} onChange={(event) => onFieldChange(item.id, "note", event.target.value)} placeholder="Lý do, tình trạng hàng, phản hồi NCC..." rows="3" className="w-full resize-none rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
+          </label>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "notified")} className="rounded-md border-2 border-black bg-amber-100 px-3 py-3 text-xs font-black uppercase text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40">Báo NCC</button>
+            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "withdrawn")} className="rounded-md border-2 border-black bg-orange-100 px-3 py-3 text-xs font-black uppercase text-orange-800 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40">Rút date</button>
+            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "destroyed")} className="rounded-md border-2 border-black bg-red-100 px-3 py-3 text-xs font-black uppercase text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-40">Hủy hàng</button>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
-function Field({ label, error, children }) {
+
+function SummaryCard({ icon: Icon, value, label, color }) {
+  const colors = {
+    green: "bg-emerald-50 text-emerald-600",
+    orange: "bg-orange-50 text-orange-600",
+    red: "bg-red-50 text-red-600",
+    slate: "bg-slate-100 text-slate-700",
+  };
+
   return (
-    <label>
-      <span className="mb-2 block text-xs font-black uppercase text-slate-600">
-        {label}
-      </span>
-      {children}
-      {error && (
-        <span className="mt-1.5 block text-xs font-bold text-red-500">
-          {error}
+    <div className="group relative flex aspect-square min-w-0 flex-col justify-between overflow-hidden rounded-[16px] border-2 border-[#008061] bg-white p-2 shadow-[0_4px_0_rgba(0,134,106,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(0,134,106,0.14)] sm:aspect-auto sm:min-h-[180px] sm:rounded-[22px] sm:border-[3px] sm:p-5 sm:shadow-[0_8px_0_rgba(0,134,106,0.10)] sm:hover:shadow-[0_13px_0_rgba(0,134,106,0.14)]">
+      <div className="flex items-start justify-between gap-3">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg shadow-md transition duration-300 group-hover:rotate-3 group-hover:scale-105 sm:h-12 sm:w-12 sm:rounded-xl ${colors[color]}`}>
+          <Icon size={15} className="sm:h-[22px] sm:w-[22px]" />
         </span>
-      )}
-    </label>
+        <span className="text-3xl font-black italic leading-none text-[#EE3124]/10 sm:text-5xl">7</span>
+      </div>
+      <div className="mt-2 sm:mt-4">
+        <p className="text-xl font-black leading-none text-[#EE3124] sm:text-3xl">{value}</p>
+        <div className="mt-3 flex items-center">
+          <span className="h-1 w-10 rounded-full bg-[#FF8200] transition-all duration-300 group-hover:w-20" />
+          <span className="ml-1 h-1 w-3 rounded-full bg-[#007A3D]" />
+        </div>
+        <p className="mt-2 text-[8px] font-black uppercase leading-tight tracking-wide text-[#FF8200] sm:mt-3 sm:text-xs">
+          {label}
+        </p>
+      </div>
+      
+    </div>
   );
 }
-const inputClass = (error) =>
-  `h-12 w-full rounded-xl border bg-slate-50 px-4 text-sm font-bold outline-none focus:ring-4 ${error ? "border-red-300 focus:ring-red-50" : "border-slate-200 focus:border-[#008c45] focus:ring-emerald-50"}`;
+
+export default function TonKho() {
+  const [inventory, setInventory] = useState(loadInventory);
+  const [groupId, setGroupId] = useState(productCatalog[0].id);
+  const [categoryId, setCategoryId] = useState(
+    productCatalog[0].categories[0].id,
+  );
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [expiryRange, setExpiryRange] = useState("all");
+  const [customExpiryValue, setCustomExpiryValue] = useState(1);
+  const [customExpiryUnit, setCustomExpiryUnit] = useState("month");
+  const [sortMode, setSortMode] = useState("expiry");
+  const [editingItemId, setEditingItemId] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+  }, [inventory]);
+
+  const activeGroup =
+    productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
+  const activeCategory =
+    activeGroup.categories.find((category) => category.id === categoryId) ??
+    activeGroup.categories[0];
+  const editingItem = inventory.find((item) => item.id === editingItemId) ?? null;
+
+  useEffect(() => {
+    setCategoryId(activeGroup.categories[0].id);
+    setQuery("");
+    setFilter("all");
+    setExpiryRange("all");
+  }, [activeGroup.id]);
+
+  const visibleItems = useMemo(() => {
+    const keyword = query.trim().toLocaleLowerCase("vi");
+
+    return inventory
+      .filter((item) => item.groupId === activeGroup.id)
+      .filter((item) => item.categoryId === activeCategory.id)
+      .filter((item) => {
+        if (!keyword) return true;
+        return (
+          item.name.toLocaleLowerCase("vi").includes(keyword) ||
+          item.note.toLocaleLowerCase("vi").includes(keyword)
+        );
+      })
+      .filter((item) => {
+        if (filter === "all") return true;
+        if (filter === "risk") return daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 7;
+        if (filter === "urgent") return daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 3;
+        if (filter === "notified") return item.action === "notified";
+        if (filter === "withdrawn") return item.action === "withdrawn";
+        if (filter === "destroyed") return item.action === "destroyed";
+        return true;
+      })
+      .filter((item) => {
+        if (expiryRange === "all" || !item.expiryDate) return expiryRange === "all";
+
+        const range = expiryRange === "custom" ? customExpiryUnit : expiryRange;
+        const amount = expiryRange === "custom"
+          ? Math.max(0, Number(customExpiryValue) || 0)
+          : expiryRange === "year"
+            ? 1
+            : Number(range.replace("m", ""));
+        const endDate = range === "day"
+          ? addDays(TODAY, amount)
+          : addMonths(TODAY, range === "year" ? amount * 12 : amount);
+        return parseDateKey(item.expiryDate) <= endDate;
+      })
+      .sort((a, b) => {
+        if (sortMode === "quantity") return (Number(a.quantity) || 0) - (Number(b.quantity) || 0);
+        if (sortMode === "name") return a.name.localeCompare(b.name, "vi");
+        return (daysUntil(a.expiryDate) ?? Number.MAX_SAFE_INTEGER) - (daysUntil(b.expiryDate) ?? Number.MAX_SAFE_INTEGER);
+      });
+  }, [activeCategory.id, activeGroup.id, customExpiryUnit, customExpiryValue, expiryRange, filter, inventory, query, sortMode]);
+
+  const stats = useMemo(() => {
+    const relevant = inventory.filter((item) => item.groupId === activeGroup.id);
+    const urgent = relevant.filter((item) => daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 3);
+    const risk = relevant.filter((item) => daysUntil(item.expiryDate) !== null && daysUntil(item.expiryDate) <= 7);
+    const notified = relevant.filter((item) => item.action === "notified");
+    const withdrawn = relevant.filter((item) => item.action === "withdrawn");
+    const destroyed = relevant.filter((item) => item.action === "destroyed");
+
+    return {
+      total: relevant.length,
+      urgent: urgent.length,
+      risk: risk.length,
+      notified: notified.length,
+      withdrawn: withdrawn.length,
+      destroyed: destroyed.length,
+      totalQty: relevant.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+    };
+  }, [activeGroup.id, inventory]);
+
+  const updateItem = (itemId, updater) => {
+    setInventory((current) =>
+      current.map((item) =>
+        item.id === itemId ? updater(item) : item,
+      ),
+    );
+  };
+
+  const handleAction = (itemId, action) => {
+    updateItem(itemId, (item) => ({
+      ...item,
+      action,
+      statusUpdatedAt: formatDateKey(TODAY),
+      note:
+        action === "notified"
+          ? "Đã báo NCC"
+          : action === "withdrawn"
+            ? "Đã rút date"
+            : action === "destroyed"
+              ? "Đã hủy hàng"
+              : item.note,
+    }));
+  };
+
+  const handleQuantityChange = (itemId, quantity) => {
+    updateItem(itemId, (item) => ({
+      ...item,
+      quantity: quantity === "" ? "" : quantity,
+    }));
+  };
+
+  const handleFieldChange = (itemId, field, value) => {
+    updateItem(itemId, (item) => {
+      if (field === "expiryDateInput") {
+        const expiryDate = parseInputDate(value);
+        return {
+          ...item,
+          expiryDateInput: expiryDate ? toInputDate(expiryDate) : value,
+          expiryDate: expiryDate || "",
+          supplierReminderDate: expiryDate
+            ? calculateSupplierReminderDate(
+                expiryDate,
+                item.reminderValue,
+                item.reminderUnit,
+              )
+            : "",
+        };
+      }
+
+      return {
+        ...item,
+        [field]: value,
+        ...(field === "expiryDate" || field === "reminderValue" || field === "reminderUnit"
+          ? {
+              supplierReminderDate: calculateSupplierReminderDate(
+                field === "expiryDate" ? value : item.expiryDate,
+                field === "reminderValue" ? value : item.reminderValue,
+                field === "reminderUnit" ? value : item.reminderUnit,
+              ),
+            }
+          : {}),
+      };
+    });
+  };
+
+  const handleAutoDate = (itemId) => {
+    updateItem(itemId, (item) => {
+      if (!item.expiryDate) return item;
+
+      return {
+        ...item,
+        supplierReminderDate: calculateSupplierReminderDate(item.expiryDate, item.reminderValue, item.reminderUnit),
+      };
+    });
+  };
+
+  const exportFilteredItems = () => {
+    const headers = ["Sản phẩm", "Nhóm hàng", "Danh mục", "Nhà cung cấp", "Số lượng", "HSD", "Ngày báo NCC", "Trạng thái", "Ghi chú"];
+    const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    const rows = visibleItems.map((item) => [
+      item.name,
+      item.groupName,
+      item.categoryName,
+      item.supplierName,
+      item.quantity,
+      toDisplayDate(item.expiryDate),
+      toDisplayDate(item.supplierReminderDate),
+      getStockState(item).label,
+      item.note,
+    ]);
+    const table = `<meta charset="utf-8"><table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const blob = new Blob([table], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ton-kho-${filter}-${formatDateKey(TODAY)}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section className="mx-auto max-w-[1750px]">
+      <div className="overflow-hidden rounded-xl border-2 border-black bg-white">
+        <StripeBar />
+
+        <div className="p-3 sm:p-5 md:p-7">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#007A3D] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white">
+                  Store manager dashboard
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <SummaryCard
+                  icon={Package2}
+                  value={stats.total}
+                  label="Mặt hàng trong nhóm"
+                  color="green"
+                />
+                <SummaryCard
+                  icon={AlertTriangle}
+                  value={stats.urgent}
+                  label="Sắp hết hạn"
+                  color="red"
+                />
+                <SummaryCard
+                  icon={RotateCcw}
+                  value={stats.withdrawn}
+                  label="Rút date"
+                  color="orange"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+              <aside className="rounded-2xl border-2 border-black bg-stone-50 p-4">
+                <div className="flex items-center gap-2">
+                  <Settings2 size={18} className="text-[#007A3D]" />
+                  <p className="text-sm font-black uppercase tracking-wider text-black">
+                    Bộ lọc vận hành
+                  </p>
+                </div>
+
+                <label className="relative mt-4 block">
+                  <Search
+                    size={18}
+                    strokeWidth={2.5}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black"
+                  />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Tìm sản phẩm, ghi chú..."
+                    className="h-11 w-full rounded-md border-2 border-black bg-white pl-11 pr-4 text-sm font-semibold text-black outline-none placeholder:font-normal placeholder:text-stone-400 focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
+                  />
+                </label>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">
+                    Nhóm hàng
+                  </span>
+                  <select
+                    value={groupId}
+                    onChange={(event) => setGroupId(event.target.value)}
+                    className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-semibold text-black outline-none focus:bg-orange-50"
+                  >
+                    {productCatalog.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div
+                  className="mt-3 flex flex-wrap gap-2"
+                  role="tablist"
+                  aria-label={`Danh mục ${activeGroup.name}`}
+                >
+                  {activeGroup.categories.map((category) => {
+                    const selected = category.id === activeCategory.id;
+
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => setCategoryId(category.id)}
+                        className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-tight transition ${
+                          selected
+                            ? "bg-[#EE3124] text-white shadow-[2px_2px_0_0_#000]"
+                            : "bg-white text-black hover:bg-stone-50"
+                        }`}
+                      >
+                        {category.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilter("all")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "all"
+                        ? "bg-[#007A3D] text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter("risk")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "risk"
+                        ? "bg-[#FF8200] text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Cần xem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter("urgent")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "urgent"
+                        ? "bg-[#EE3124] text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Sắp hết hạn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter("notified")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "notified"
+                        ? "bg-[#008061] text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Đã báo NCC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter("withdrawn")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "withdrawn"
+                        ? "bg-slate-700 text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Rút date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilter("destroyed")}
+                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
+                      filter === "destroyed"
+                        ? "bg-black text-white"
+                        : "bg-white text-black"
+                    }`}
+                  >
+                    Hủy hàng
+                  </button>
+                </div>
+
+                <div className="mt-4 rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-black">
+                      Lọc theo HSD
+                    </span>
+                    <CalendarClock size={16} className="text-[#EE3124]" />
+                  </div>
+                  <select
+                    value={expiryRange}
+                    onChange={(event) => setExpiryRange(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
+                  >
+                    <option value="all">Tất cả thời hạn</option>
+                    <option value="1m">HSD trong 1 tháng</option>
+                    <option value="2m">HSD trong 2 tháng</option>
+                    <option value="3m">HSD trong 3 tháng</option>
+                    <option value="6m">HSD trong 6 tháng</option>
+                    <option value="year">HSD trong 1 năm</option>
+                    <option value="custom">Tùy chỉnh</option>
+                  </select>
+
+                  {expiryRange === "custom" && (
+                    <div className="mt-2 grid grid-cols-[1fr_1fr] gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={customExpiryValue}
+                        onChange={(event) => setCustomExpiryValue(event.target.value)}
+                        className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
+                        aria-label="Số lượng thời gian lọc HSD"
+                      />
+                      <select
+                        value={customExpiryUnit}
+                        onChange={(event) => setCustomExpiryUnit(event.target.value)}
+                        className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
+                        aria-label="Đơn vị thời gian lọc HSD"
+                      >
+                        <option value="day">Ngày tới</option>
+                        <option value="month">Tháng tới</option>
+                        <option value="year">Năm tới</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <label className="mt-4 block">
+                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">
+                    Sắp xếp
+                  </span>
+                  <div className="relative">
+                    <ArrowUpDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-500"
+                    />
+                    <select
+                      value={sortMode}
+                      onChange={(event) => setSortMode(event.target.value)}
+                      className="h-11 w-full appearance-none rounded-md border-2 border-black bg-white px-3 pr-9 text-sm font-semibold text-black outline-none focus:bg-orange-50"
+                    >
+                      <option value="expiry">Gần hết hạn</option>
+                      <option value="quantity">Tồn thấp trước</option>
+                      <option value="name">Tên A-Z</option>
+                    </select>
+                  </div>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={exportFilteredItems}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-4 py-3 text-sm font-black uppercase text-white transition hover:bg-[#016a34]"
+                >
+                  <Download size={17} />
+                  Xuất Excel theo bộ lọc
+                </button>
+              </aside>
+
+              <div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-black uppercase text-black">
+                      {activeCategory.name}
+                    </h3>
+                    <p className="text-sm text-stone-500">
+                      {visibleItems.length} sản phẩm đang hiển thị
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase text-stone-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                      <CheckCircle2 size={14} />
+                      An toàn
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-orange-700">
+                      <AlertTriangle size={14} />
+                      Cần theo dõi
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-red-700">
+                      <Trash2 size={14} />
+                      Can thiệp
+                    </span>
+                  </div>
+                </div>
+
+                {visibleItems.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+                    {visibleItems.map((item) => (
+                      <InventoryCard
+                        key={item.id}
+                        item={item}
+                        onOpen={setEditingItemId}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid min-h-64 place-items-center rounded-md border-2 border-dashed border-black bg-stone-50 p-8 text-center">
+                    <div>
+                      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-white">
+                        <Package2 size={28} />
+                      </div>
+                      <p className="mt-4 text-base font-black uppercase text-black">
+                        Chưa có sản phẩm phù hợp
+                      </p>
+                      <p className="mt-1 max-w-sm text-sm leading-6 text-stone-600">
+                        Hãy đổi bộ lọc hoặc từ khóa tìm kiếm để xem lại danh sách
+                        hàng trong nhóm này.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {editingItem && (
+        <InventoryDrawer
+          item={editingItem}
+          onClose={() => setEditingItemId(null)}
+          onAction={handleAction}
+          onQuantityChange={handleQuantityChange}
+          onFieldChange={handleFieldChange}
+          onAutoDate={handleAutoDate}
+        />
+      )}
+    </section>
+  );
+}

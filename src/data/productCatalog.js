@@ -1,3 +1,10 @@
+const createProduct = (id, name, price) => ({
+  id,
+  name,
+  price,
+  image: `/images/products/${id}.png`,
+});
+
 export const productCatalog = [
   {
     id: "thuc-uong-dac-biet",
@@ -1934,13 +1941,684 @@ export const productCatalog = [
     name: "Thịt Nguội, Thịt Sơ Chế",
     categories: [
       { id: "cha-lua-thit-nguoi", name: "Chả lụa, thịt nguội", products: [] },
-      { id: "cold-cuts", name: "Cold Cuts", products: [] },
+      {
+        id: "cold-cuts",
+        name: "Cold Cuts",
+        products: [
+          {
+            id: "jambon-heo-iberico-uop-muoi-cebo-30g",
+            name: "Jambon Heo Iberico Ướp Muối Cebo 30g",
+            price: 89000,
+            image: "/images/products/jambon-heo-iberico-uop-muoi-cebo-30g.png",
+          },
+          {
+            id: "jambon-heo-serrano-uop-muoi-30g",
+            name: "Jambon Heo Serrano Ướp Muối 30g",
+            price: 63000,
+            image: "/images/products/jambon-heo-serrano-uop-muoi-30g.png",
+          },
+          {
+            id: "xuc-xich-heo-iberico-muoi-chorizo-30g",
+            name: "Xúc Xích Heo Iberico Muối Chorizo 30g",
+            price: 59000,
+            image: "/images/products/xuc-xich-heo-iberico-muoi-chorizo-30g.png",
+          },
+          {
+            id: "xuc-xich-heo-iberico-muoi-salchichon-30g",
+            name: "Xúc Xích Heo Iberico Muối Salchichon 30g",
+            price: 59000,
+            image:
+              "/images/products/xuc-xich-heo-iberico-muoi-salchichon-30g.png",
+          },
+          {
+            id: "oliu-xanh-tach-hat-frutto-ditalia-30g",
+            name: "Oliu Xanh Tách Hạt Frutto D'Italia 30g",
+            price: 39000,
+            image: "/images/products/oliu-xanh-tach-hat-frutto-ditalia-30g.png",
+          },
+          {
+            id: "oliu-tach-hat-hon-hop-frutto-ditalia-30g",
+            name: "Oliu Tách Hạt Hỗn Hợp Frutto D'Italia 30g",
+            price: 39000,
+            image:
+              "/images/products/oliu-tach-hat-hon-hop-frutto-ditalia-30g.png",
+          },
+          {
+            id: "pho-mai-que-cheddar-emborg-21g",
+            name: "Phô Mai Que Cheddar Emborg 21g",
+            price: 18000,
+            image: "/images/products/pho-mai-que-cheddar-emborg-21g.png",
+          },
+          {
+            id: "pho-mai-kem-anchor-140g",
+            name: "Phô Mai Kem Anchor 140g",
+            price: 84000,
+            image: "/images/products/pho-mai-kem-anchor-140g.png",
+          },
+          {
+            id: "pho-mai-lat-cheddar-anchor-200g",
+            name: "Phô Mai Lát Cheddar Anchor 200g",
+            price: 85000,
+            image: "/images/products/pho-mai-lat-cheddar-anchor-200g.png",
+          },
+          {
+            id: "xuc-xich-kho-elconchel-mini-chorizo-55g",
+            name: "Xúc Xích Khô Elconchel Mini Chorizo 55g",
+            price: 108000,
+            image:
+              "/images/products/xuc-xich-kho-elconchel-mini-chorizo-55g.png",
+          },
+          {
+            id: "xuc-xich-kho-elconchel-mini-fuet-55g",
+            name: "Xúc Xích Khô Elconchel Mini Fuet 55g",
+            price: 108000,
+            image: "/images/products/xuc-xich-kho-elconchel-mini-fuet-55g.png",
+          },
+        ],
+      },
     ],
   },
   {
     id: "do-kho-ngu-coc",
     name: "Đồ Khô Ngũ Cốc",
-    categories: [{ id: "mi-an-lien", name: "Mì ăn liền", products: [] }],
+    categories: [
+      {
+        id: "mi-an-lien",
+        name: "Mì ăn liền",
+        products: [
+          createProduct(
+            "mi-omachi-hai-san-chua-cay-ly-66g",
+            "Mì Omachi Hải Sản Chua Cay Ly 66g",
+            17000,
+          ),
+          createProduct(
+            "mi-omachi-xot-bo-ham-ly-69g",
+            "Mì Omachi Xốt Bò Hầm Ly 69g",
+            17000,
+          ),
+          createProduct(
+            "chao-tuoi-cay-thi-ca-hoi-rong-bien-240g",
+            "Cháo Tươi Cây Thị Cá Hồi Rong Biển 240g",
+            34000,
+          ),
+          createProduct(
+            "mi-shin-kimchi-goi-120g",
+            "Mì Shin Kimchi Gói 120g",
+            34000,
+          ),
+          createProduct(
+            "mi-neoguri-hai-san-cay-goi-120g",
+            "Mì Neoguri Hải Sản Cay Gói 120g",
+            33000,
+          ),
+          createProduct(
+            "mi-tron-nongshim-tuong-den-goi-140g",
+            "Mì Trộn Nongshim Tương Đen Gói 140g",
+            40000,
+          ),
+          createProduct(
+            "banh-gao-topokki-pho-mai-120g",
+            "Bánh Gạo Topokki Phô Mai 120g",
+            51000,
+          ),
+          createProduct(
+            "mi-samyang-tuong-den-cay-goi-140g",
+            "Mì Samyang Tương Đen Cay Gói 140g",
+            42000,
+          ),
+          createProduct(
+            "banh-gao-topokki-cay-140g",
+            "Bánh Gạo Topokki Cay 140g",
+            51000,
+          ),
+          createProduct(
+            "mi-otoki-jin-khong-cay-to-110g",
+            "Mì Otoki Jin Không Cay Tô 110g",
+            24000,
+          ),
+          createProduct(
+            "mi-otoki-tuong-den-to-115g",
+            "Mì Otoki Tương Đen Tô 115g",
+            28000,
+          ),
+          createProduct(
+            "mi-shin-ramyun-spicy-queen-ly-68g",
+            "Mì Shin Ramyun Spicy Queen Ly 68g",
+            38000,
+          ),
+          createProduct(
+            "mi-siukay-ga-xot-pho-mai-to-97g",
+            "Mì Siukay Gà Xốt Phô Mai Tô 97g",
+            22000,
+          ),
+          createProduct(
+            "mi-ramyun-kimchi-ly-75g",
+            "Mì Ramyun Kimchi Ly 75g",
+            34000,
+          ),
+          createProduct(
+            "mi-samyang-ga-cay-ly-70g",
+            "Mì Samyang Gà Cay Ly 70g",
+            40000,
+          ),
+          createProduct(
+            "mi-ly-samyang-ga-cay-pho-mai",
+            "Mì Ly Samyang Gà Cay Phô Mai",
+            44000,
+          ),
+          createProduct(
+            "mi-tron-abc-ga-cay-pho-mai-ly-80g",
+            "Mì Trộn ABC Gà Cay Phô Mai Ly 80g",
+            20000,
+          ),
+          createProduct(
+            "pho-bo-mplus-vi-nam-to-70g",
+            "Phở Bò Mplus Vị Nam Tô 70g",
+            66000,
+          ),
+          createProduct(
+            "mi-xao-kho-goreng-dac-biet-85g",
+            "Mì Xào Khô Goreng Đặc Biệt 85g",
+            8000,
+          ),
+          createProduct(
+            "mi-cung-dinh-kool-bbq-to-99g",
+            "Mì Cung Đình Kool BBQ Tô 99g",
+            20000,
+          ),
+          createProduct(
+            "mi-cung-dinh-tom-chua-cay-to-85g",
+            "Mì Cung Đình Tôm Chua Cay Tô 85g",
+            18000,
+          ),
+          createProduct(
+            "mi-otoki-jin-ramen-cay-to-110g",
+            "Mì Otoki Jin Ramen Cay Tô 110g",
+            23000,
+          ),
+          createProduct(
+            "mi-kho-samyang-ga-cay-carbonara-goi-130g",
+            "Mì Khô Samyang Gà Cay Carbonara Gói 130g",
+            46000,
+          ),
+          createProduct(
+            "mi-siukay-huong-vi-bo-127g",
+            "Mì Siukay Hương Vị Bò 127g",
+            18000,
+          ),
+          createProduct(
+            "mi-siukay-ga-cay-pho-mai-129g",
+            "Mì Siukay Gà Cay Phô Mai 129g",
+            18000,
+          ),
+          createProduct(
+            "mi-tron-omachi-spaghetti-to-105g",
+            "Mì Trộn Omachi Spaghetti Tô 105g",
+            26000,
+          ),
+          createProduct("mi-yeul-cay-to-105g", "Mì Yeul Cay Tô 105g", 23000),
+          createProduct(
+            "mi-xao-kho-goreng-suon-80g",
+            "Mì Xào Khô Goreng Sườn 80g",
+            8000,
+          ),
+          createProduct(
+            "mi-kho-ga-cay-samyang-rose-to-105g",
+            "Mì Khô Gà Cay Samyang Rose Tô 105g",
+            65000,
+          ),
+          createProduct(
+            "mi-kho-ga-cay-samyang-to-105g",
+            "Mì Khô Gà Cay Samyang Tô 105g",
+            63000,
+          ),
+          createProduct(
+            "mi-tron-shin-ramyun-tomyum-to-103g",
+            "Mì Trộn Shin Ramyun Tomyum Tô 103g",
+            47000,
+          ),
+          createProduct(
+            "pho-ga-thit-that-vifon-90g",
+            "Phở Gà Thịt Thật Vifon 90g",
+            21000,
+          ),
+          createProduct(
+            "lau-tu-soi-haidilao-bo-mem-ca-chua-365g",
+            "Lẩu Tự Sôi Haidilao Vị Bò Mềm Cà Chua 365g",
+            164000,
+          ),
+          createProduct(
+            "lau-tu-soi-haidilao-ca-chua-thit-chien-275g",
+            "Lẩu Tự Sôi Haidilao Vị Cà Chua Thịt Chiên 275g",
+            102000,
+          ),
+          createProduct(
+            "mi-omachi-tron-cua-xot-ot-to-96g",
+            "Mì Omachi Trộn Cua Xốt Ớt Tô 96g",
+            26000,
+          ),
+          createProduct(
+            "hu-tieu-vifon-suon-heo-thit-that-to-90g",
+            "Hủ Tiếu Vifon Sườn Heo Thịt Thật Tô 90g",
+            25000,
+          ),
+          createProduct(
+            "hu-tieu-nam-vang-vifon-thit-that-to-90g",
+            "Hủ Tiếu Nam Vang Vifon Thịt Thật Tô 90g",
+            25000,
+          ),
+          createProduct(
+            "chao-tuoi-cay-thi-luon-dau-xanh-240g",
+            "Cháo Tươi Cây Thị Lươn Đậu Xanh 240g",
+            34000,
+          ),
+          createProduct(
+            "mi-vifon-bo-cay-thit-that-to-90g",
+            "Mì Vifon Bò Cay Thịt Thật Tô 90g",
+            23000,
+          ),
+          createProduct(
+            "mi-shin-ramyun-ramen-to-114g",
+            "Mì Shin Ramyun Ramen Tô 114g",
+            48000,
+          ),
+          createProduct(
+            "mi-omachi-xot-tom-pho-mai-to-105g",
+            "Mì Omachi Xốt Tôm Phô Mai Tô 105g",
+            26000,
+          ),
+          createProduct(
+            "mi-tron-sedaap-vi-mi-xao-90g",
+            "Mì Trộn Sedaap Vị Mì Xào 90g",
+            8000,
+          ),
+          createProduct(
+            "mi-tron-sedaap-ga-cay-pho-mai-86g",
+            "Mì Trộn Sedaap Vị Gà Cay Phô Mai 86g",
+            13000,
+          ),
+          createProduct(
+            "mi-tron-omachi-lau-cam-tay-tomyum-ly-78g",
+            "Mì Trộn Omachi Lẩu Cầm Tay Tomyum Ly 78g",
+            18000,
+          ),
+          createProduct(
+            "mi-tron-sedaap-ga-cay-han-quoc-87g",
+            "Mì Trộn Sedaap Vị Gà Cay Hàn Quốc 87g",
+            13000,
+          ),
+          createProduct(
+            "pho-bo-chinsu-to-134g",
+            "Phở Bò Chinsu Tô 134g",
+            42000,
+          ),
+          createProduct(
+            "mi-la-bo-de-chay-to-80g",
+            "Mì Lá Bồ Đề Chay Tô 80g",
+            17000,
+          ),
+          createProduct(
+            "mi-ta-hai-tom-binh-tay-to-80g",
+            "Mì Ta Hai Tôm Bình Tây Tô 80g",
+            17000,
+          ),
+          createProduct(
+            "mien-cua-binh-tay-to-55g",
+            "Miến Cua Bình Tây Tô 55g",
+            19000,
+          ),
+          createProduct(
+            "mi-modern-xtreme-bo-kay-khoi-lua-66g",
+            "Mì Modern Xtreme Vị Bò Kay Khói Lửa 66g",
+            11000,
+          ),
+          createProduct(
+            "mi-modern-xtreme-kimchi-bung-kay-66g",
+            "Mì Modern Xtreme Vị Kimchi Bùng Kay 66g",
+            13000,
+          ),
+          createProduct(
+            "mi-omachi-quan-xa-chau-bo-ham-dai-loan-93g",
+            "Mì Omachi Quán Xá Châu Á Bò Hầm Đài Loan 93g",
+            37000,
+          ),
+          createProduct(
+            "mi-omachi-quan-xa-chau-trung-thit-ca-chua",
+            "Mì Omachi Quán Xá Châu Á Trứng Thịt Cà Chua",
+            37000,
+          ),
+          createProduct(
+            "mi-omachi-quan-xa-chau-tomyum-bangkok-96g",
+            "Mì Omachi Quán Xá Châu Á Tomyum Bangkok 96g",
+            37000,
+          ),
+          createProduct(
+            "mi-omachi-quan-xa-chau-miso-hai-san-nhat-ban-93g",
+            "Mì Omachi Quán Xá Châu Á Miso Hải Sản Nhật Bản 93g",
+            37000,
+          ),
+          createProduct(
+            "mi-modern-vi-ga-ot-hiem-ly-63g",
+            "Mì Modern Vị Gà Ớt Hiểm Ly 63g",
+            12000,
+          ),
+          createProduct(
+            "mi-kho-ga-cay-carbo-ly-80g",
+            "Mì Khô Gà Cay Carbo Ly 80g",
+            43000,
+          ),
+          createProduct(
+            "mi-handy-hao-hao-chay-lau-nam-ly-66g",
+            "Mì Handy Hảo Hảo Chay Lẩu Nấm Ly 66g",
+            14000,
+          ),
+          createProduct(
+            "mi-tron-ta-hai-tom-binh-tay-to-100g",
+            "Mì Trộn Ta Hai Tôm Bình Tây Tô 100g",
+            20000,
+          ),
+          createProduct(
+            "mi-xao-kho-goreng-cay-nong-79g",
+            "Mì Xào Khô Goreng Cay Nóng 79g",
+            8000,
+          ),
+          createProduct(
+            "mi-xao-hao-hao-hai-san-75g",
+            "Mì Xào Hảo Hảo Hải Sản 75g",
+            6000,
+          ),
+          createProduct("pho-vifon-bo-goi-65g", "Phở Vifon Bò Gói 65g", 14000),
+          createProduct(
+            "mien-phu-huong-suon-heo-58g",
+            "Miến Phú Hương Sườn Heo 58g",
+            18000,
+          ),
+          createProduct(
+            "mien-long-trieu-cua-vifon-goi-68g",
+            "Miến Long Triều Cua Vifon Gói 68g",
+            26000,
+          ),
+          createProduct(
+            "sup-cay-thi-nui-thit-bam-bi-do-260g",
+            "Súp Cây Thị Nui Thịt Bằm Bí Đỏ 260g",
+            30000,
+          ),
+          createProduct(
+            "chao-sg-food-to-yen-ca-hoi-240g",
+            "Cháo SG Food Tổ Yến Cá Hồi 240g",
+            41000,
+          ),
+          createProduct(
+            "canh-asuzac-rong-bien-dau-hu-4g",
+            "Canh Asuzac Rong Biển Đậu Hũ 4g",
+            6000,
+          ),
+          createProduct(
+            "vien-canh-isoup-canh-chua-chay",
+            "Viên Canh ISoup Canh Chua Chay 5g",
+            15000,
+          ),
+          createProduct(
+            "mi-shin-xao-kho-pho-mai-goi-136g",
+            "Mì Shin Xào Khô Phô Mai Gói 136g",
+            39000,
+          ),
+          createProduct(
+            "vien-canh-isoup-rau-ngot-thit-bam",
+            "Viên Canh ISoup Rau Ngót Thịt Bằm 9g",
+            15000,
+          ),
+          createProduct(
+            "mi-omachi-lau-tom-cang-to-92g",
+            "Mì Omachi Lẩu Tôm Càng Tô 92g",
+            22000,
+          ),
+          createProduct(
+            "mi-omachi-lau-tom-cang-80g",
+            "Mì Omachi Lẩu Tôm Càng 80g",
+            13000,
+          ),
+          createProduct(
+            "mi-omachi-xot-bo-ham-to-93g",
+            "Mì Omachi Xốt Bò Hầm Tô 93g",
+            22000,
+          ),
+          createProduct(
+            "mi-omachi-suon-ham-ngu-qua-80g",
+            "Mì Omachi Sườn Hầm Ngũ Quả 80g",
+            13000,
+          ),
+          createProduct(
+            "mi-mama-tom-xot-kem-tomyum-55g",
+            "Mì Mama Tôm Xốt Kem Tomyum 55g",
+            13000,
+          ),
+          createProduct(
+            "mi-tron-mama-trung-muoi-85g",
+            "Mì Trộn Mama Vị Trứng Muối 85g",
+            24000,
+          ),
+          createProduct(
+            "mi-omachi-lau-cam-tay-tomyum-ly-71g",
+            "Mì Omachi Lẩu Cầm Tay Tomyum Ly 71g",
+            18000,
+          ),
+          createProduct(
+            "mi-omachi-lau-cam-tay-tom-hum-ly-81g",
+            "Mì Omachi Lẩu Cầm Tay Tôm Hùm Ly 81g",
+            18000,
+          ),
+          createProduct(
+            "mi-xao-kho-shin-ramyun-toomba-137g",
+            "Mì Xào Khô Shin Ramyun Toomba 137g",
+            41000,
+          ),
+          createProduct(
+            "mi-tron-omachi-thit-xien-nuong-to-104g",
+            "Mì Trộn Omachi Thịt Xiên Nướng Tô 104g",
+            26000,
+          ),
+          createProduct(
+            "mi-omachi-lau-cam-tay-tomyum-ly-68g",
+            "Mì Omachi Lẩu Cầm Tay Tomyum Ly 68g",
+            18000,
+          ),
+          createProduct(
+            "mi-ly-nongshim-shin-68g",
+            "Mì Ly Nongshim Shin 68g",
+            35000,
+          ),
+          createProduct(
+            "mi-ly-modern-lau-thai",
+            "Mì Ly Modern Lẩu Thái",
+            12000,
+          ),
+          createProduct(
+            "mi-ly-handy-hao-hao-tom",
+            "Mì Ly Handy Hảo Hảo Tôm",
+            14000,
+          ),
+          createProduct(
+            "mi-ly-handy-hao-hao-tomyum-67g",
+            "Mì Ly Handy Hảo Hảo Tomyum 67g",
+            14000,
+          ),
+          createProduct(
+            "mi-ly-cung-dinh-tom-chua-cay-71g",
+            "Mì Ly Cung Đình Tôm Chua Cay 71g",
+            12000,
+          ),
+          createProduct(
+            "mi-otoki-jin-khong-cay-ly-65g",
+            "Mì Otoki Jin Không Cay Ly 65g",
+            16000,
+          ),
+          createProduct(
+            "mi-xao-tao-quan-thit-khay-85g",
+            "Mì Xào Táo Quân Thịt Khay 85g",
+            18000,
+          ),
+          createProduct(
+            "com-trang-an-lien-ottogi-210g",
+            "Cơm Trắng Ăn Liền Ottogi 210g",
+            40000,
+          ),
+          createProduct(
+            "mi-hao-hao-tom-chua-cay",
+            "Mì Hảo Hảo Tôm Chua Cay",
+            6000,
+          ),
+          createProduct(
+            "mi-hao-hao-lau-kim-chi-75g",
+            "Mì Hảo Hảo Lẩu Kim Chi 75g",
+            6000,
+          ),
+          createProduct(
+            "mi-the-gioi-mi-lau-thai-80g",
+            "Mì Thế Giới Mì Lẩu Thái 80g",
+            12000,
+          ),
+          createProduct(
+            "mi-otoki-bo-ham-goi-120g",
+            "Mì Otoki Bò Hầm Gói 120g",
+            16000,
+          ),
+          createProduct(
+            "mi-ottogi-tuong-den-135g",
+            "Mì Ottogi Tương Đen 135g",
+            28000,
+          ),
+          createProduct("mi-shin-ramyun-120g", "Mì Shin Ramyun 120g", 35000),
+          createProduct(
+            "mi-siukay-hai-san-128g",
+            "Mì Siukay Vị Hải Sản 128g",
+            18000,
+          ),
+          createProduct(
+            "mi-kho-ga-cay-pho-mai-samyang",
+            "Mì Khô Gà Cay Phô Mai Samyang",
+            44000,
+          ),
+          createProduct(
+            "mi-kho-samyang-ga-cay-goi-140g",
+            "Mì Khô Samyang Gà Cay Gói 140g",
+            42000,
+          ),
+          createProduct("mi-de-nhat-thit-bam", "Mì Đệ Nhất Thịt Bằm", 12000),
+          createProduct("mi-udon-surishuki-75g", "Mì Udon SuriSuki 75g", 13000),
+          createProduct(
+            "mi-xao-hao-hao-chua-ngot-75g",
+            "Mì Xào Hảo Hảo Chua Ngọt 75g",
+            6000,
+          ),
+          createProduct("mi-hao-hao-chay-74g", "Mì Hảo Hảo Chay 74g", 6000),
+          createProduct(
+            "mien-haidilao-vi-chua-cay-ly-127g",
+            "Miến Haidilao Vị Chua Cay Ly 127g",
+            35000,
+          ),
+          createProduct(
+            "mi-tron-handy-hao-hao-to",
+            "Mì Trộn Handy Hảo Hảo Tô",
+            22000,
+          ),
+          createProduct(
+            "thung-30-goi-mi-hao-hao-tom",
+            "Thùng 30 Gói Mì Hảo Hảo Tôm",
+            172000,
+          ),
+          createProduct(
+            "thung-30-goi-mi-the-gioi-mi-lau-thai",
+            "Thùng 30 Gói Mì Thế Giới Mì Lẩu Thái",
+            360000,
+          ),
+          createProduct(
+            "mi-ly-mama-tom-tomyum-60g",
+            "Mì Ly Mama Tôm Tomyum 60g",
+            24000,
+          ),
+          createProduct(
+            "thung-24-mi-siukay-hai-san",
+            "Thùng 24 Mì Siukay Vị Hải Sản",
+            432000,
+          ),
+          createProduct(
+            "thung-30-goi-mi-de-nhat-thit-bam",
+            "Thùng 30 Gói Mì Đệ Nhất Thịt Bằm",
+            360000,
+          ),
+          createProduct(
+            "mi-nongshim-ga-cay-to-100g",
+            "Mì Nongshim Vị Gà Cay Tô 100g",
+            40000,
+          ),
+          createProduct(
+            "mi-yukgaejang-vi-cay-to-100g",
+            "Mì Yukgaejang Vị Cay Tô 100g",
+            40000,
+          ),
+          createProduct(
+            "mi-nho-mai-mai-lau-thai-tom-to-84g",
+            "Mì Nhớ Mãi Mãi Lẩu Thái Tôm Tô 84g",
+            18000,
+          ),
+          createProduct(
+            "mi-siukay-hai-san-to-96g",
+            "Mì Siukay Hải Sản Tô 96g",
+            21000,
+          ),
+          createProduct("chao-asuzac-thit-36g", "Cháo Asuzac Thịt 36g", 19000),
+          createProduct("pho-bo-vifon-to-120g", "Phở Bò Vifon Tô 120g", 37000),
+          createProduct(
+            "mi-kho-kool-spaghetti-bo",
+            "Mì Khô Kool Spaghetti Bò",
+            20000,
+          ),
+
+          // Các sản phẩm T9 bán lẻ
+          createProduct(
+            "mi-ly-samyang-ga-cay-pho-mai-t9",
+            "Mì Ly Samyang Gà Cay Phô Mai - T9",
+            39000,
+          ),
+          createProduct(
+            "mi-samyang-tuong-den-cay-goi-140g-t9",
+            "Mì Samyang Tương Đen Cay Gói 140g - T9",
+            36000,
+          ),
+          createProduct(
+            "mi-samyang-ga-cay-ly-70g-t9",
+            "Mì Samyang Gà Cay Ly 70g - T9",
+            35000,
+          ),
+          createProduct(
+            "com-trang-ottogi-210g-t9",
+            "Cơm Trắng Ottogi 210g - T9",
+            35000,
+          ),
+          createProduct(
+            "my-shin-ramyun-spicy-queen-ly-68g-t9",
+            "Mì Shin Ramyun Spicy Queen Ly 68g - T9",
+            34000,
+          ),
+          createProduct(
+            "mi-ramyun-kimchi-ly-75g-t9",
+            "Mì Ramyun Kimchi Ly 75g - T9",
+            31000,
+          ),
+          createProduct(
+            "mi-neoguri-hai-san-cay-goi-120g-t9",
+            "Mì Neoguri Hải Sản Cay Gói 120g - T9",
+            28000,
+          ),
+          createProduct(
+            "mi-omachi-tron-cua-xot-ot-to-96g-t9",
+            "Mì Omachi Trộn Cua Xốt Ớt Tô 96g - T9",
+            22000,
+          ),
+        ],
+      },
+    ],
   },
   {
     id: "cham-soc-ca-nhan",
