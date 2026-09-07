@@ -12,6 +12,14 @@
   to { transform: translateY(0); }
 }
 
+@media (max-width: 639px) {
+  [role="dialog"] input,
+  [role="dialog"] select,
+  [role="dialog"] textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer base {
   * { @apply box-border; }
   body { @apply m-0 bg-brand-mist text-brand-ink antialiased; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
