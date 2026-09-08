@@ -560,7 +560,6 @@ export default function TonKho({ theme = DEFAULT_THEME }) {
                                     : "border-emerald-600 bg-emerald-100 text-emerald-800"
                             }`}
                           >
-                            <span className="font-black">HSD </span>
                             <span className="font-black">
                               {formatDate(record.expiryDate)}
                             </span>
