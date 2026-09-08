@@ -1,1242 +1,603 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  ImageOff,
-  Package2,
-  Search,
-  ShieldAlert,
-  Truck,
-  Trash2,
-  RotateCcw,
-  ArrowUpDown,
+  CalendarDays,
+  Check,
   Download,
-  Settings2,
-  X,
+  PackageOpen,
+  Search,
+  Trash2,
 } from "lucide-react";
 
-import { productCatalog } from "../data/productCatalog";
+const INVENTORY_STORAGE_KEY = "inventoryRecords";
 
-const STORAGE_KEY = "tonKhoInventoryV2";
-const ALL_GROUP_ID = "__all__";
-const TODAY = new Date();
+const DEFAULT_THEME = {
+  primary: "#008061",
+  primaryDark: "#006C52",
+  primarySoft: "#EAF8F3",
+  accent: "#FF8200",
+  accentSoft: "#FFF4E6",
+  danger: "#EE3124",
+  dangerDark: "#C92319",
+  outline: "#008061",
+  mutedOutline: "#87A89E",
+};
 
-function pad(value) {
-  return String(value).padStart(2, "0");
-}
+const QUICK_FILTERS = [
+  { id: "all", label: "Tất cả" },
+  { id: "1d", label: "1 ngày", days: 1 },
+  { id: "7d", label: "7 ngày", days: 7 },
+  { id: "30d", label: "30 ngày", days: 30 },
+  { id: "3m", label: "3 tháng", months: 3 },
+  { id: "6m", label: "6 tháng", months: 6 },
+  { id: "1y", label: "1 năm", months: 12 },
+];
 
-function formatDateKey(date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function parseDateKey(dateKey) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function addDays(date, amount) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return next;
-}
-
-function addMonths(date, amount) {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + amount);
-  return next;
-}
-
-function toDisplayDate(dateKey) {
-  if (!dateKey) return "-";
-  return parseDateKey(dateKey).toLocaleDateString("vi-VN");
-}
-
-function toInputDate(dateKey) {
-  if (!dateKey) return "";
-  const date = parseDateKey(dateKey);
-  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
-}
-
-function parseInputDate(value) {
-  const digits = value.replace(/\D/g, "");
-  const normalized = digits.length === 8
-    ? `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`
-    : value.trim();
-  const match = normalized.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (!match) return "";
-
-  const [, day, month, year] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-  if (
-    date.getFullYear() !== Number(year) ||
-    date.getMonth() !== Number(month) - 1 ||
-    date.getDate() !== Number(day)
-  ) {
-    return "";
-  }
-
-  return formatDateKey(date);
-}
-
-function normalizeNumberInput(value) {
-  return value.replace(/^0+(?=\d)/, "");
-}
-
-function normalizeSearchText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("vi")
-    .replace(/đ/g, "d")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function daysUntil(dateKey) {
-  if (!dateKey) return null;
-  const target = parseDateKey(dateKey);
-  const diff = target.getTime() - TODAY.getTime();
-  return Math.round(diff / (1000 * 60 * 60 * 24));
-}
-
-function calculateSupplierReminderDate(expiryDate, reminderValue, reminderUnit) {
-  if (!expiryDate) return "";
-  const value = Math.max(0, Number(reminderValue) || 0);
-  const days = reminderUnit === "year" ? value * 365 : reminderUnit === "month" ? value * 30 : value;
-  return formatDateKey(addDays(parseDateKey(expiryDate), -days));
-}
-
-function createEmptyBatch() {
-  return {
-    id: crypto.randomUUID(),
-    quantity: "",
-    expiryDate: "",
-    expiryDateInput: "",
-    supplierName: "",
-    reminderValue: 3,
-    reminderUnit: "day",
-    supplierReminderDate: "",
-    note: "",
-    action: "normal",
-    statusUpdatedAt: formatDateKey(TODAY),
-  };
-}
-
-function normalizeBatches(item) {
-  if (Array.isArray(item.batches) && item.batches.length > 0) {
-    return item.batches;
-  }
-
-  return [
-    {
-      id: `${item.id}-legacy`,
-      quantity: item.quantity ?? "",
-      expiryDate: item.expiryDate ?? "",
-      expiryDateInput: item.expiryDateInput ?? "",
-      supplierName: item.supplierName ?? "",
-      reminderValue: item.reminderValue ?? 3,
-      reminderUnit: item.reminderUnit ?? "day",
-      supplierReminderDate: item.supplierReminderDate ?? "",
-      note: item.note ?? "",
-      action: item.action ?? "normal",
-      statusUpdatedAt: item.statusUpdatedAt ?? formatDateKey(TODAY),
-    },
-  ];
-}
-
-function getLatestBatch(item) {
-  const batches = normalizeBatches(item);
-  return batches[batches.length - 1] ?? createEmptyBatch();
-}
-
-function buildInventorySeed() {
-  const products = [];
-
-  productCatalog.forEach((group) => {
-    group.categories.forEach((category) => {
-      category.products.forEach((product) => {
-        const variants = product.variants ?? [product];
-        const primaryVariant = variants[0];
-        products.push({
-          id: product.id ?? `${group.id}-${category.id}-${productIndex}`,
-          groupId: group.id,
-          groupName: group.name,
-          categoryId: category.id,
-          categoryName: category.name,
-          name: product.name,
-          image: primaryVariant.image ?? product.image ?? "",
-          price: primaryVariant.price ?? product.price ?? 0,
-          size: primaryVariant.size ?? null,
-          batches: [createEmptyBatch()],
-        });
-      });
-    });
-  });
-
-  return products;
-}
-
-function loadInventory() {
-  const seed = buildInventorySeed();
-
+function readRecords() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return seed;
-
-    const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return seed;
-
-    const map = new Map(parsed.map((item) => [item.id, item]));
-    return seed.map((item) => {
-      const savedItem = map.get(item.id);
-      if (!savedItem) return item;
-      return {
-        ...item,
-        ...savedItem,
-        batches: normalizeBatches(savedItem),
-      };
-    });
+    const parsed = JSON.parse(
+      localStorage.getItem(INVENTORY_STORAGE_KEY) ?? "[]",
+    );
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return seed;
+    return [];
   }
 }
 
-function getStockState(item) {
-  const batch = getLatestBatch(item);
-  const remaining = daysUntil(batch.expiryDate);
+function toDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  if (!batch.expiryDate) {
+function parseLocalDate(value) {
+  if (!value) return null;
+
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value) {
+  const date = parseLocalDate(value);
+  if (!date) return "--";
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+function getDaysUntil(value) {
+  const expiryDate = parseLocalDate(value);
+  if (!expiryDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000);
+}
+
+function getExpiryStatus(days) {
+  if (days === null || days < 7) {
     return {
-      label: "Chưa kiểm date",
-      tone: "bg-slate-100 text-slate-700",
-      detail: "Nhập số lượng và HSD khi đi kiểm hàng",
+      label: days !== null && days < 0 ? "Đã hết hạn" : "Khẩn cấp",
+      card: "bg-red-50",
+      cardBorder: "border-red-600",
+      cardShadow: "shadow-[3px_3px_0_0_#dc2626] hover:shadow-[5px_5px_0_0_#dc2626]",
+      badge: "bg-red-600 text-white",
     };
   }
 
-  if (batch.action === "destroyed") {
+  if (days <= 14) {
     return {
-      label: "Đã hủy",
-      tone: "bg-slate-100 text-slate-700",
-      detail: "Đã loại khỏi quầy",
+      label: "Cần xử lý sớm",
+      card: "bg-orange-50",
+      cardBorder: "border-orange-500",
+      cardShadow: "shadow-[3px_3px_0_0_#f97316] hover:shadow-[5px_5px_0_0_#f97316]",
+      badge: "bg-orange-500 text-white",
     };
   }
 
-  if (batch.action === "withdrawn") {
+  if (days <= 30) {
     return {
-      label: "Đã rút date",
-      tone: "bg-orange-100 text-orange-700",
-      detail: "Đã chuyển xử lý nội bộ",
-    };
-  }
-
-  if (batch.action === "notified") {
-    return {
-      label: "Đã báo NCC",
-      tone: "bg-amber-100 text-amber-700",
-      detail: "Đang chờ phản hồi nhà cung cấp",
-    };
-  }
-
-  if (remaining < 0) {
-    return {
-      label: "Quá hạn",
-      tone: "bg-red-100 text-red-700",
-      detail: `Quá hạn ${Math.abs(remaining)} ngày`,
-    };
-  }
-
-  if (remaining <= 3) {
-    return {
-      label: "Sắp hết hạn",
-      tone: "bg-red-100 text-red-700",
-      detail: `Còn ${remaining} ngày`,
-    };
-  }
-
-  if (remaining <= 7) {
-    return {
-      label: "Cần theo dõi",
-      tone: "bg-orange-100 text-orange-700",
-      detail: `Còn ${remaining} ngày`,
+      label: "Sắp đến hạn",
+      card: "bg-amber-50",
+      cardBorder: "border-amber-400",
+      cardShadow: "shadow-[3px_3px_0_0_#fbbf24] hover:shadow-[5px_5px_0_0_#fbbf24]",
+      badge: "bg-amber-400 text-black",
     };
   }
 
   return {
-    label: "An toàn",
-    tone: "bg-emerald-100 text-emerald-700",
-    detail: `Còn ${remaining} ngày`,
+    label: "Còn hạn",
+    card: "bg-white",
+    cardBorder: "border-emerald-600",
+    cardShadow: "shadow-[3px_3px_0_0_#059669] hover:shadow-[5px_5px_0_0_#059669]",
+    badge: "bg-emerald-100 text-emerald-800",
   };
 }
 
-function StripeBar() {
-  return (
-    <div
-      className="h-2 w-full"
-      style={{
-        background:
-          "repeating-linear-gradient(-35deg, #FF8200 0 22px, #EE3124 22px 44px, #007A3D 44px 66px)",
-      }}
-    />
-  );
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function InventoryCard({ item, onOpen }) {
-  const state = getStockState(item);
-  const batch = getLatestBatch(item);
-  const batches = normalizeBatches(item);
-  const totalQuantity = batches.reduce(
-    (sum, currentBatch) => sum + (Number(currentBatch.quantity) || 0),
-    0,
-  );
-  const variants = item.size ? [item.size] : [];
-  const isDestroyed = batch.action === "destroyed";
-
-  return (
-    <article
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(item.id)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen(item.id);
-        }
-      }}
-      className="group min-w-0 cursor-pointer overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#008061] focus:outline-none focus:ring-4 focus:ring-[#FF8200]/40"
-    >
-      <div className="relative aspect-[4/3] overflow-hidden bg-white">
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            loading="lazy"
-            className={`h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
-              isDestroyed ? "opacity-40 grayscale" : ""
-            }`}
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-stone-300">
-            <ImageOff size={26} />
-          </div>
-        )}
-        <div className={`absolute right-1.5 top-1.5 whitespace-nowrap rounded px-1.5 py-1 text-[8px] font-black uppercase ${state.tone} sm:right-2 sm:top-2 sm:px-2 sm:text-[9px]`}>
-          {state.label}
-        </div>
-      </div>
-      <div className="min-w-0 border-t-2 border-[#008061] px-2 py-2 sm:px-2.5">
-        <h3 className="line-clamp-2 min-h-8 text-[11px] font-bold uppercase leading-4 tracking-tight text-black sm:text-sm">
-          {item.name}
-        </h3>
-        <div className="mt-2 grid grid-cols-[minmax(48px,0.6fr)_minmax(0,1.4fr)] gap-1.5 text-[9px] font-semibold text-stone-700 sm:gap-2 sm:text-[12px]">
-          <div className="min-w-0 truncate rounded border border-stone-200 bg-stone-50 px-2 py-2">
-            SL: <span className="font-black text-black">{totalQuantity || batch.quantity || "-"}</span>
-          </div>
-          <div className="min-w-0 whitespace-nowrap rounded border border-stone-200 bg-stone-50 p-2 text-[10px]">
-            <span className="font-black text-black">{toDisplayDate(batch.expiryDate)}</span>
-            {batches.length > 1 && <span className="ml-1 text-[9px] text-[#007A3D]">+{batches.length - 1}</span>}
-          </div>
-        </div>
-        {batch.supplierName && (
-          <div className="mt-2 rounded border-2 border-dashed border-stone-300 bg-stone-50 px-2 py-2 text-[10px] font-black uppercase text-stone-600">
-            <span className="block min-w-0 truncate">{batch.supplierName}</span>
-          </div>
-        )}
-      </div>
-    </article>
-  );
-
-  return (
-    <article className="group min-w-0 overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#008061]">
-      <div className="relative aspect-[4/3] overflow-hidden bg-white">
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            loading="lazy"
-            className={`h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105 ${
-              isDestroyed ? "opacity-40 grayscale" : ""
-            }`}
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-stone-300">
-            <ImageOff size={26} />
-          </div>
-        )}
-
-        <div className="absolute left-2 top-2 max-w-[46%] truncate rounded bg-black/80 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
-          {item.groupName}
-        </div>
-
-        <div className={`absolute right-2 top-2 max-w-[46%] truncate rounded px-2 py-1 text-[10px] font-black uppercase ${state.tone}`}>
-          {state.label}
-        </div>
-      </div>
-
-      <div className="min-w-0 border-t-2 border-[#008061] px-2.5 py-2">
-        <h3 className="line-clamp-2 min-h-8 text-xs font-bold uppercase leading-4 tracking-tight text-black sm:text-sm">
-          {item.name}
-        </h3>
-
-        {variants.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Kích cỡ">
-            {variants.map((variant) => (
-              <span
-                key={variant}
-                className="rounded border-2 border-black bg-white px-2 py-1 text-[11px] font-black text-black"
-              >
-                {variant}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-semibold text-stone-700">
-          <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
-            SL: <span className="font-black text-black">{item.quantity || "-"}</span>
-          </div>
-          <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1.5">
-            HSD: <span className="font-black text-black">{toDisplayDate(item.expiryDate)}</span>
-          </div>
-        </div>
-
-        <div className="mt-2 text-[11px] font-bold text-stone-500">
-          <span className="inline-flex items-center gap-1">
-            <CalendarClock size={12} />
-            Báo NCC: {toDisplayDate(item.supplierReminderDate)}
-          </span>
-          <div className="mt-1">{state.detail}</div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-1.5">
-          <button
-            type="button"
-            onClick={() => onAction(item.id, "notified")}
-            disabled={!item.expiryDate || item.quantity === ""}
-            className="rounded border-2 border-black bg-amber-100 px-2 py-1 text-[11px] font-black uppercase text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Báo date NCC
-          </button>
-          <button
-            type="button"
-            onClick={() => onAction(item.id, "withdrawn")}
-            disabled={!item.expiryDate || item.quantity === ""}
-            className="rounded border-2 border-black bg-orange-100 px-2 py-1 text-[11px] font-black uppercase text-orange-800 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Rút date
-          </button>
-          <button
-            type="button"
-            onClick={() => onAction(item.id, "destroyed")}
-            disabled={!item.expiryDate || item.quantity === ""}
-            className="rounded border-2 border-black bg-red-100 px-2 py-1 text-[11px] font-black uppercase text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Hủy hàng
-          </button>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-              Tồn
-            </span>
-            <input
-              type="number"
-              min="0"
-              value={item.quantity ?? ""}
-              onChange={(event) =>
-                onQuantityChange(item.id, normalizeNumberInput(event.target.value))
-              }
-              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-              HSD
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="dd-mm-yyyy"
-              value={item.expiryDateInput ?? toInputDate(item.expiryDate)}
-              onChange={(event) =>
-                onFieldChange(item.id, "expiryDateInput", event.target.value)
-              }
-              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50"
-            />
-          </label>
-        </div>
-
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="col-span-2 block min-w-0">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-              Nhà cung cấp
-            </span>
-            <input
-              type="text"
-              value={item.supplierName ?? ""}
-              onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)}
-              placeholder="Tên NCC"
-              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50"
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-              Báo trước
-            </span>
-            <input
-              type="number"
-              min="0"
-              value={item.reminderValue ?? 3}
-              onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))}
-              className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50"
-            />
-          </label>
-          <label className="block min-w-0">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-              Đơn vị
-            </span>
-            <select
-              value={item.reminderUnit ?? "day"}
-              onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)}
-              className="h-10 w-full rounded-md border-2 border-black bg-white px-1 text-xs font-bold outline-none focus:bg-orange-50"
-            >
-              <option value="day">Ngày</option>
-              <option value="month">Tháng</option>
-              <option value="year">Năm</option>
-            </select>
-          </label>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onAutoDate(item.id)}
-          disabled={!item.expiryDate}
-          className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-[#FFF8EC] px-2 py-2 text-[11px] font-black uppercase text-black transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <CalendarClock size={13} />
-          Tự tính ngày báo NCC
-        </button>
-
-        <label className="mt-2 block">
-          <span className="mb-1 block text-[9px] font-black uppercase tracking-wider text-stone-500">
-            Ghi chú
-          </span>
-          <input
-            type="text"
-            value={item.note}
-            onChange={(event) =>
-              onFieldChange(item.id, "note", event.target.value)
-            }
-            placeholder="Lý do / xử lý"
-            className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-stone-400 focus:bg-orange-50"
-          />
-        </label>
-      </div>
-    </article>
-  );
+function exportExcel(records) {
+  const rows = records
+    .map(
+      (record) => `
+        <tr>
+          <td>${escapeHtml(record.productName)}</td>
+          <td>${escapeHtml(record.variantSize || "-")}</td>
+          <td>${escapeHtml(record.quantity)}</td>
+          <td>${escapeHtml(formatDate(record.expiryDate))}</td>
+          <td>${escapeHtml(record.supplier)}</td>
+          <td>${escapeHtml(formatDateTime(record.savedAt))}</td>
+        </tr>`,
+    )
+    .join("");
+  const html = `
+    <html>
+      <head><meta charset="UTF-8" /></head>
+      <body>
+        <table border="1">
+          <thead>
+            <tr>
+              <th>Sản phẩm</th>
+              <th>Size</th>
+              <th>Số lượng</th>
+              <th>Hạn sử dụng</th>
+              <th>NCC</th>
+              <th>Thời gian</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
+    </html>`;
+  const blob = new Blob([`\ufeff${html}`], {
+    type: "application/vnd.ms-excel;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `ton-kho-${toDateInputValue(new Date())}.xls`;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
-function InventoryDrawer({ item, onClose, onAction, onQuantityChange, onFieldChange, onAutoDate }) {
-  const state = getStockState(item);
-  const batch = getLatestBatch(item);
-  const canProcess = Boolean(batch.expiryDate) && batch.quantity !== "";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch" role="dialog" aria-modal="true" aria-label={`Chỉnh thông tin ${item.name}`}>
-      <button
-        type="button"
-        aria-label="Đóng chi tiết sản phẩm"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/40"
-      />
-      <aside className="relative flex h-auto max-h-[92dvh] w-full max-w-none flex-col overflow-y-auto rounded-t-[26px] border-t-2 border-black bg-[#FFFDF8] shadow-[0_-8px_0_rgba(0,0,0,0.12)] animate-[slideUp_180ms_ease-out] sm:h-full sm:max-h-none sm:max-w-md sm:rounded-t-none sm:border-l-2 sm:border-t-0 sm:shadow-[-8px_0_0_rgba(0,0,0,0.12)] sm:animate-[slideIn_180ms_ease-out]">
-        <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-stone-300 sm:hidden" />
-        <div className="flex items-start justify-between gap-2 border-b-2 border-black bg-white p-2.5 sm:gap-3 sm:p-5">
-          <div className="min-w-0">
-            <h2 className="mt-1 text-sm font-black uppercase leading-4 text-black sm:text-lg sm:leading-6">{item.name}</h2>
-            <p className="mt-1 text-sm font-semibold text-stone-500">{item.categoryName} · {state.label}</p>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-md border-2 border-black bg-[#FF8200] text-white transition hover:bg-[#EE3124] sm:h-10 sm:w-10" aria-label="Đóng">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-2 p-2.5 sm:space-y-4 sm:p-5">
-          <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] sm:max-w-[260px]">
-            <div className="aspect-[4/3] bg-white">
-              {item.image ? <img src={item.image} alt={item.name} className="h-full w-full object-contain p-4" /> : <div className="grid h-full place-items-center text-stone-300"><ImageOff size={32} /></div>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Số lượng</span>
-              <input type="number" min="0" value={batch.quantity ?? ""} onChange={(event) => onQuantityChange(item.id, normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-xs font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-base" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">HSD</span>
-              <input type="text" inputMode="numeric" placeholder="dd-mm-yyyy" value={batch.expiryDateInput ?? toInputDate(batch.expiryDate)} onChange={(event) => onFieldChange(item.id, "expiryDateInput", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Nhà cung cấp</span>
-            <input type="text" value={batch.supplierName ?? ""} onChange={(event) => onFieldChange(item.id, "supplierName", event.target.value)} placeholder="Tên nhà cung cấp" className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" />
-          </label>
-
-          <div className="rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-black">Date NCC</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <input type="number" min="0" value={batch.reminderValue ?? 3} onChange={(event) => onFieldChange(item.id, "reminderValue", normalizeNumberInput(event.target.value))} className="h-9 w-full rounded-md border-2 border-black bg-white px-2 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-3 sm:text-sm" aria-label="Số ngày báo trước" />
-              <select value={batch.reminderUnit ?? "day"} onChange={(event) => onFieldChange(item.id, "reminderUnit", event.target.value)} className="h-9 w-full rounded-md border-2 border-black bg-white px-1 text-[11px] font-bold outline-none focus:bg-orange-50 sm:h-11 sm:px-2 sm:text-sm" aria-label="Đơn vị báo trước">
-                <option value="day">Ngày</option>
-                <option value="month">Tháng</option>
-                <option value="year">Năm</option>
-              </select>
-            </div>
-            <button type="button" onClick={() => onAutoDate(item.id)} disabled={!batch.expiryDate} className="mt-2 inline-flex h-9 w-full items-center justify-center gap-1 rounded-md border-2 border-black bg-white px-2 text-[10px] font-black uppercase transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:gap-2 sm:px-3 sm:text-xs">
-              <CalendarClock size={15} /> Tự tính ngày báo NCC
-            </button>
-            <p className="mt-2 text-xs font-bold text-stone-600">Ngày báo: {toDisplayDate(batch.supplierReminderDate)}</p>
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">Ghi chú xử lý</span>
-            <textarea value={batch.note ?? ""} onChange={(event) => onFieldChange(item.id, "note", event.target.value)} placeholder="Lý do, tình trạng hàng, phản hồi NCC..." rows="3" className="w-full resize-none rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-semibold outline-none placeholder:text-stone-400 focus:bg-orange-50" />
-          </label>
-
-          <div className="grid grid-cols-3 gap-1 [&>button]:whitespace-nowrap [&>button]:px-1 [&>button]:py-2 [&>button]:text-[9px] sm:gap-2 sm:[&>button]:px-3 sm:[&>button]:py-3 sm:[&>button]:text-xs">
-            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "notified")} className="rounded-md border-2 border-black bg-amber-100 px-3 py-3 text-xs font-black uppercase text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40">Báo NCC</button>
-            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "withdrawn")} className="rounded-md border-2 border-black bg-orange-100 px-3 py-3 text-xs font-black uppercase text-orange-800 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40">Rút date</button>
-            <button type="button" disabled={!canProcess} onClick={() => onAction(item.id, "destroyed")} className="rounded-md border-2 border-black bg-red-100 px-3 py-3 text-xs font-black uppercase text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-40">Hủy hàng</button>
-          </div>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function SummaryCard({ icon: Icon, value, label, color }) {
-  const colors = {
-    green: "bg-emerald-50 text-emerald-600",
-    orange: "bg-orange-50 text-orange-600",
-    red: "bg-red-50 text-red-600",
-    slate: "bg-slate-100 text-slate-700",
-  };
-
-  return (
-    <div className="group relative flex aspect-square min-w-0 flex-col justify-between overflow-hidden rounded-[16px] border-2 border-[#008061] bg-white p-2 shadow-[0_4px_0_rgba(0,134,106,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(0,134,106,0.14)] sm:aspect-auto sm:min-h-[180px] sm:rounded-[22px] sm:border-[3px] sm:p-5 sm:shadow-[0_8px_0_rgba(0,134,106,0.10)] sm:hover:shadow-[0_13px_0_rgba(0,134,106,0.14)]">
-      <div className="flex items-start justify-between gap-3">
-        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg shadow-md transition duration-300 group-hover:rotate-3 group-hover:scale-105 sm:h-12 sm:w-12 sm:rounded-xl ${colors[color]}`}>
-          <Icon size={15} className="sm:h-[22px] sm:w-[22px]" />
-        </span>
-        <span className="text-3xl font-black italic leading-none text-[#EE3124]/10 sm:text-5xl">7</span>
-      </div>
-      <div className="mt-2 sm:mt-4">
-        <p className="text-xl font-black leading-none text-[#EE3124] sm:text-3xl">{value}</p>
-        <div className="mt-3 hidden items-center sm:flex">
-          <span className="h-1 w-10 rounded-full bg-[#FF8200] transition-all duration-300 group-hover:w-20" />
-          <span className="ml-1 h-1 w-3 rounded-full bg-[#007A3D]" />
-        </div>
-        <p className="mt-2 text-[8px] font-black uppercase leading-tight tracking-wide text-[#FF8200] sm:mt-3 sm:text-xs">
-          {label}
-        </p>
-      </div>
-      
-    </div>
-  );
-}
-
-export default function TonKho() {
-  const [inventory, setInventory] = useState(loadInventory);
-  const [groupId, setGroupId] = useState(productCatalog[0].id);
-  const [categoryId, setCategoryId] = useState(
-    productCatalog[0].categories[0].id,
-  );
-  const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
-  const [filter, setFilter] = useState("all");
-  const [expiryRange, setExpiryRange] = useState("all");
-  const [customExpiryValue, setCustomExpiryValue] = useState(1);
-  const [customExpiryUnit, setCustomExpiryUnit] = useState("month");
-  const [sortMode, setSortMode] = useState("expiry");
-  const [editingItemId, setEditingItemId] = useState(null);
+export default function TonKho({ theme = DEFAULT_THEME }) {
+  const [records, setRecords] = useState(readRecords);
+  const [quickFilter, setQuickFilter] = useState("all");
+  const [expiryBand, setExpiryBand] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
-  }, [inventory]);
+    const syncRecords = () => setRecords(readRecords());
+    window.addEventListener("storage", syncRecords);
+    return () => window.removeEventListener("storage", syncRecords);
+  }, []);
 
-  const activeGroup =
-    groupId === ALL_GROUP_ID
-      ? { id: ALL_GROUP_ID, name: "Tất cả", categories: [] }
-      : productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
-  const activeCategory =
-    activeGroup.categories.find((category) => category.id === categoryId) ??
-    activeGroup.categories[0] ?? null;
-  const editingItem = inventory.find((item) => item.id === editingItemId) ?? null;
-
-  const searchIndex = useMemo(() => {
-    return new Map(
-      inventory.map((item) => [
-        item.id,
-        normalizeSearchText([
-          item.name,
-          item.groupName,
-          item.categoryName,
-          item.note,
-          ...normalizeBatches(item).flatMap((batch) => [
-            batch.supplierName,
-            batch.note,
-            batch.expiryDate,
-            batch.expiryDateInput,
-            batch.action,
-          ]),
-        ].join(" ")),
-      ]),
+  const filteredRecords = useMemo(() => {
+    const selectedQuickFilter = QUICK_FILTERS.find(
+      (filter) => filter.id === quickFilter,
     );
-  }, [inventory]);
+    const today = new Date();
+    let quickLimitDays = null;
 
-  useEffect(() => {
-    setCategoryId(activeGroup.categories[0]?.id ?? "");
-    setFilter("all");
-    setExpiryRange("all");
-  }, [activeGroup.id]);
+    if (selectedQuickFilter?.days) {
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + selectedQuickFilter.days);
+      quickLimitDays = getDaysUntil(toDateInputValue(endDate));
+    }
 
-  const visibleItems = useMemo(() => {
-    const keywords = normalizeSearchText(deferredQuery).split(" ").filter(Boolean);
+    if (selectedQuickFilter?.months) {
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + selectedQuickFilter.months);
+      quickLimitDays = getDaysUntil(toDateInputValue(endDate));
+    }
 
-    return inventory
-      .filter((item) => {
-        if (keywords.length === 0) {
-          if (activeGroup.id === ALL_GROUP_ID) return true;
-          return item.groupId === activeGroup.id && item.categoryId === activeCategory?.id;
-        }
-        return true;
+    const lowerSearch = search.trim().toLocaleLowerCase("vi");
+
+    return records
+      .filter((record) => {
+        const matchesSearch =
+          !lowerSearch ||
+          `${record.productName} ${record.supplier}`
+            .toLocaleLowerCase("vi")
+            .includes(lowerSearch);
+        const remainingDays = getDaysUntil(record.expiryDate);
+        const matchesQuick =
+          quickFilter === "all" ||
+          (remainingDays !== null &&
+            remainingDays >= 0 &&
+            remainingDays <= quickLimitDays);
+        const matchesExpiryBand =
+          expiryBand === "all" ||
+          (remainingDays !== null &&
+            ((expiryBand === "15-30" && remainingDays >= 15 && remainingDays <= 30) ||
+              (expiryBand === "8-14" && remainingDays >= 8 && remainingDays <= 14) ||
+              (expiryBand === "1-7" && remainingDays >= 0 && remainingDays <= 7)));
+        const matchesFrom = !dateFrom || record.expiryDate >= dateFrom;
+        const matchesTo = !dateTo || record.expiryDate <= dateTo;
+
+        return (
+          matchesSearch &&
+          matchesQuick &&
+          matchesExpiryBand &&
+          matchesFrom &&
+          matchesTo
+        );
       })
-      .filter((item) => {
-        if (keywords.length === 0) return true;
+      .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  }, [dateFrom, dateTo, expiryBand, quickFilter, records, search]);
 
-        const searchableText = searchIndex.get(item.id) ?? "";
+  const allFilteredSelected =
+    filteredRecords.length > 0 &&
+    filteredRecords.every((record) => selectedIds.has(record.id));
 
-        return keywords.every((keyword) => searchableText.includes(keyword));
-      })
-      .filter((item) => {
-        if (filter === "all") return true;
-        const batch = getLatestBatch(item);
-        if (filter === "risk") return daysUntil(batch.expiryDate) !== null && daysUntil(batch.expiryDate) <= 7;
-        if (filter === "urgent") return daysUntil(batch.expiryDate) !== null && daysUntil(batch.expiryDate) <= 3;
-        if (filter === "notified") return batch.action === "notified";
-        if (filter === "withdrawn") return batch.action === "withdrawn";
-        if (filter === "destroyed") return batch.action === "destroyed";
-        return true;
-      })
-      .filter((item) => {
-        const batch = getLatestBatch(item);
-        if (expiryRange === "all" || !batch.expiryDate) return expiryRange === "all";
-
-        const range = expiryRange === "custom" ? customExpiryUnit : expiryRange;
-        const amount = expiryRange === "custom"
-          ? Math.max(0, Number(customExpiryValue) || 0)
-          : expiryRange === "year"
-            ? 1
-            : Number(range.replace("m", ""));
-        const endDate = range === "day"
-          ? addDays(TODAY, amount)
-          : addMonths(TODAY, range === "year" ? amount * 12 : amount);
-        return parseDateKey(batch.expiryDate) <= endDate;
-      })
-      .sort((a, b) => {
-        const batchA = getLatestBatch(a);
-        const batchB = getLatestBatch(b);
-        if (sortMode === "quantity") return (Number(batchA.quantity) || 0) - (Number(batchB.quantity) || 0);
-        if (sortMode === "name") return a.name.localeCompare(b.name, "vi");
-        return (daysUntil(batchA.expiryDate) ?? Number.MAX_SAFE_INTEGER) - (daysUntil(batchB.expiryDate) ?? Number.MAX_SAFE_INTEGER);
-      });
-  }, [activeCategory?.id, activeGroup.id, customExpiryUnit, customExpiryValue, deferredQuery, expiryRange, filter, inventory, searchIndex, sortMode]);
-
-  const stats = useMemo(() => {
-    const relevant = activeGroup.id === ALL_GROUP_ID
-      ? inventory
-      : inventory.filter((item) => item.groupId === activeGroup.id);
-    const urgent = relevant.filter((item) => daysUntil(getLatestBatch(item).expiryDate) !== null && daysUntil(getLatestBatch(item).expiryDate) <= 3);
-    const risk = relevant.filter((item) => daysUntil(getLatestBatch(item).expiryDate) !== null && daysUntil(getLatestBatch(item).expiryDate) <= 7);
-    const notified = relevant.filter((item) => getLatestBatch(item).action === "notified");
-    const withdrawn = relevant.filter((item) => getLatestBatch(item).action === "withdrawn");
-    const destroyed = relevant.filter((item) => getLatestBatch(item).action === "destroyed");
-
-    return {
-      total: relevant.length,
-      urgent: urgent.length,
-      risk: risk.length,
-      notified: notified.length,
-      withdrawn: withdrawn.length,
-      destroyed: destroyed.length,
-      totalQty: relevant.reduce((sum, item) => sum + (Number(getLatestBatch(item).quantity) || 0), 0),
-    };
-  }, [activeGroup.id, inventory]);
-
-  const updateItem = (itemId, updater) => {
-    setInventory((current) =>
-      current.map((item) =>
-        item.id === itemId
-          ? (() => {
-              const updatedItem = updater(item);
-              const batches = normalizeBatches(updatedItem);
-              const lastIndex = batches.length - 1;
-              const latestBatch = batches[lastIndex];
-              const legacyFields = [
-                "quantity",
-                "expiryDate",
-                "expiryDateInput",
-                "supplierName",
-                "reminderValue",
-                "reminderUnit",
-                "supplierReminderDate",
-                "note",
-                "action",
-                "statusUpdatedAt",
-              ];
-              const hasLegacyUpdate = legacyFields.some((field) =>
-                Object.prototype.hasOwnProperty.call(updatedItem, field),
-              );
-
-              return hasLegacyUpdate
-                ? {
-                    ...updatedItem,
-                    batches: batches.map((batch, index) =>
-                      index === lastIndex
-                        ? legacyFields.reduce(
-                            (nextBatch, field) =>
-                              Object.prototype.hasOwnProperty.call(updatedItem, field)
-                                ? { ...nextBatch, [field]: updatedItem[field] }
-                                : nextBatch,
-                            latestBatch,
-                          )
-                        : batch,
-                    ),
-                  }
-                : updatedItem;
-            })()
-          : item,
-      ),
-    );
+  const toggleSelected = (id) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const handleAction = (itemId, action) => {
-    updateItem(itemId, (item) => ({
-      ...item,
-      action,
-      statusUpdatedAt: formatDateKey(TODAY),
-      note:
-        action === "notified"
-          ? "Đã báo NCC"
-          : action === "withdrawn"
-            ? "Đã rút date"
-            : action === "destroyed"
-              ? "Đã hủy hàng"
-              : item.note,
-    }));
-  };
-
-  const handleQuantityChange = (itemId, quantity) => {
-    updateItem(itemId, (item) => ({
-      ...item,
-      quantity: quantity === "" ? "" : quantity,
-    }));
-  };
-
-  const handleFieldChange = (itemId, field, value) => {
-    updateItem(itemId, (item) => {
-      if (field === "expiryDateInput") {
-        const expiryDate = parseInputDate(value);
-        return {
-          ...item,
-          expiryDateInput: expiryDate ? toInputDate(expiryDate) : value,
-          expiryDate: expiryDate || "",
-          supplierReminderDate: expiryDate
-            ? calculateSupplierReminderDate(
-                expiryDate,
-                item.reminderValue,
-                item.reminderUnit,
-              )
-            : "",
-        };
+  const toggleAllFiltered = () => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allFilteredSelected) {
+        filteredRecords.forEach((record) => next.delete(record.id));
+      } else {
+        filteredRecords.forEach((record) => next.add(record.id));
       }
-
-      return {
-        ...item,
-        [field]: value,
-        ...(field === "expiryDate" || field === "reminderValue" || field === "reminderUnit"
-          ? {
-              supplierReminderDate: calculateSupplierReminderDate(
-                field === "expiryDate" ? value : item.expiryDate,
-                field === "reminderValue" ? value : item.reminderValue,
-                field === "reminderUnit" ? value : item.reminderUnit,
-              ),
-            }
-          : {}),
-      };
+      return next;
     });
   };
 
-  const handleAutoDate = (itemId) => {
-    updateItem(itemId, (item) => {
-      if (!item.expiryDate) return item;
+  const deleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Xóa ${selectedIds.size} bản ghi đã chọn?`)) return;
 
-      return {
-        ...item,
-        supplierReminderDate: calculateSupplierReminderDate(item.expiryDate, item.reminderValue, item.reminderUnit),
-      };
-    });
+    const remaining = records.filter((record) => !selectedIds.has(record.id));
+    localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(remaining));
+    setRecords(remaining);
+    setSelectedIds(new Set());
   };
 
-  const exportFilteredItems = () => {
-    const headers = ["Sản phẩm", "Nhóm hàng", "Danh mục", "Nhà cung cấp", "Số lượng", "HSD", "Ngày báo NCC", "Trạng thái", "Ghi chú"];
-    const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-    const rows = visibleItems.map((item) => [
-      item.name,
-      item.groupName,
-      item.categoryName,
-      item.supplierName,
-      item.quantity,
-      toDisplayDate(item.expiryDate),
-      toDisplayDate(item.supplierReminderDate),
-      getStockState(item).label,
-      item.note,
-    ]);
-    const table = `<meta charset="utf-8"><table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-    const blob = new Blob([table], { type: "application/vnd.ms-excel;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `ton-kho-${filter}-${formatDateKey(TODAY)}.xls`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const clearDateFilters = () => {
+    setQuickFilter("all");
+    setExpiryBand("all");
+    setDateFrom("");
+    setDateTo("");
   };
 
   return (
-    <section className="mx-auto max-w-[1750px]">
+    <section
+      className="mx-auto max-w-[1500px]"
+      style={{
+        "--ui-primary": theme.primary,
+        "--ui-primary-dark": theme.primaryDark,
+        "--ui-primary-soft": theme.primarySoft,
+        "--ui-accent": theme.accent,
+        "--ui-accent-soft": theme.accentSoft,
+        "--ui-danger": theme.danger,
+        "--ui-danger-dark": theme.dangerDark,
+        "--ui-outline": theme.outline,
+        "--ui-muted-outline": theme.mutedOutline,
+      }}
+    >
       <div className="overflow-hidden rounded-xl border-2 border-black bg-white">
-        <StripeBar />
+        <div
+          className="h-2 w-full"
+          style={{
+            background:
+              "repeating-linear-gradient(-35deg, #FF8200 0 22px, #EE3124 22px 44px, #007A3D 44px 66px)",
+          }}
+        />
 
-        <div className="p-3 sm:p-5 md:p-7">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4">
-              <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#007A3D] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white">
-                  Store manager dashboard
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <SummaryCard
-                  icon={Package2}
-                  value={stats.total}
-                  label="Mặt hàng trong nhóm"
-                  color="green"
-                />
-                <SummaryCard
-                  icon={AlertTriangle}
-                  value={stats.urgent}
-                  label="Sắp hết hạn"
-                  color="red"
-                />
-                <SummaryCard
-                  icon={RotateCcw}
-                  value={stats.withdrawn}
-                  label="Rút date"
-                  color="orange"
-                />
-              </div>
+        <div className="p-5 md:p-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#008061]">
+                Theo dõi lô hàng
+              </p>
+              <h1 className="mt-2 inline-block rounded-sm bg-[#007A3D] px-2 py-0.5 text-[18px] font-black uppercase tracking-wide text-white">
+                Tồn kho & Hạn sử dụng
+              </h1>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-              <aside className="rounded-2xl border-2 border-black bg-stone-50 p-4">
-                <div className="flex items-center gap-2">
-                  <Settings2 size={18} className="text-[#007A3D]" />
-                  <p className="text-sm font-black uppercase tracking-wider text-black">
-                    Bộ lọc vận hành
-                  </p>
-                </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => exportExcel(filteredRecords)}
+                disabled={filteredRecords.length === 0}
+                className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-4 py-2.5 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] transition hover:bg-[#006b35] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Download size={17} />
+                Xuất Excel
+              </button>
+              <button
+                type="button"
+                onClick={deleteSelected}
+                disabled={selectedIds.size === 0}
+                className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#EE3124] px-4 py-2.5 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] transition hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 size={17} />
+                Xóa đã chọn ({selectedIds.size})
+              </button>
+            </div>
+          </div>
 
-                <label className="relative mt-4 block">
-                  <Search
-                    size={18}
-                    strokeWidth={2.5}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black"
-                  />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Tìm sản phẩm, ghi chú..."
-                    className="h-11 w-full rounded-md border-2 border-black bg-white pl-11 pr-4 text-sm font-semibold text-black outline-none placeholder:font-normal placeholder:text-stone-400 focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
-                  />
-                </label>
-
-                <label className="mt-3 block">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">
-                    Nhóm hàng
-                  </span>
-                  <select
-                    value={groupId}
-                    onChange={(event) => setGroupId(event.target.value)}
-                    className="h-11 w-full rounded-md border-2 border-black bg-white px-3 text-sm font-semibold text-black outline-none focus:bg-orange-50"
-                  >
-                    <option value={ALL_GROUP_ID}>Tất cả</option>
-                    {productCatalog.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {activeGroup.id !== ALL_GROUP_ID && (
-                  <div
-                    className="mt-3 flex flex-wrap gap-2"
-                    role="tablist"
-                    aria-label={`Danh mục ${activeGroup.name}`}
-                  >
-                    {activeGroup.categories.map((category) => {
-                      const selected = category.id === activeCategory?.id;
-
-                      return (
-                        <button
-                          key={category.id}
-                          type="button"
-                          role="tab"
-                          aria-selected={selected}
-                          onClick={() => setCategoryId(category.id)}
-                          className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-tight transition ${
-                            selected
-                              ? "bg-[#EE3124] text-white shadow-[2px_2px_0_0_#000]"
-                              : "bg-white text-black hover:bg-stone-50"
-                          }`}
-                        >
-                          {category.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFilter("all")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "all"
-                        ? "bg-[#007A3D] text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Tất cả
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("risk")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "risk"
-                        ? "bg-[#FF8200] text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Cần xem
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("urgent")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "urgent"
-                        ? "bg-[#EE3124] text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Sắp hết hạn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("notified")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "notified"
-                        ? "bg-[#008061] text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Đã báo NCC
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("withdrawn")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "withdrawn"
-                        ? "bg-slate-700 text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Rút date
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilter("destroyed")}
-                    className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase ${
-                      filter === "destroyed"
-                        ? "bg-black text-white"
-                        : "bg-white text-black"
-                    }`}
-                  >
-                    Hủy hàng
-                  </button>
-                </div>
-
-                <div className="mt-4 rounded-xl border-2 border-black bg-[#FFF8EC] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-black">
-                      Lọc theo HSD
-                    </span>
-                    <CalendarClock size={16} className="text-[#EE3124]" />
-                  </div>
-                  <select
-                    value={expiryRange}
-                    onChange={(event) => setExpiryRange(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
-                  >
-                    <option value="all">Tất cả thời hạn</option>
-                    <option value="1m">HSD trong 1 tháng</option>
-                    <option value="2m">HSD trong 2 tháng</option>
-                    <option value="3m">HSD trong 3 tháng</option>
-                    <option value="6m">HSD trong 6 tháng</option>
-                    <option value="year">HSD trong 1 năm</option>
-                    <option value="custom">Tùy chỉnh</option>
-                  </select>
-
-                  {expiryRange === "custom" && (
-                    <div className="mt-2 grid grid-cols-[1fr_1fr] gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={customExpiryValue}
-                        onChange={(event) => setCustomExpiryValue(event.target.value)}
-                        className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
-                        aria-label="Số lượng thời gian lọc HSD"
-                      />
-                      <select
-                        value={customExpiryUnit}
-                        onChange={(event) => setCustomExpiryUnit(event.target.value)}
-                        className="h-10 w-full rounded-md border-2 border-black bg-white px-2 text-sm font-bold outline-none focus:bg-orange-50"
-                        aria-label="Đơn vị thời gian lọc HSD"
-                      >
-                        <option value="day">Ngày tới</option>
-                        <option value="month">Tháng tới</option>
-                        <option value="year">Năm tới</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <label className="mt-4 block">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-stone-500">
-                    Sắp xếp
-                  </span>
-                  <div className="relative">
-                    <ArrowUpDown
-                      size={16}
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-stone-500"
-                    />
-                    <select
-                      value={sortMode}
-                      onChange={(event) => setSortMode(event.target.value)}
-                      className="h-11 w-full appearance-none rounded-md border-2 border-black bg-white px-3 pr-9 text-sm font-semibold text-black outline-none focus:bg-orange-50"
+          <div className="mt-5 rounded-md border-2 border-black bg-orange-50 p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {QUICK_FILTERS.map((filter) => {
+                  const selected = quickFilter === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => {
+                        setQuickFilter(filter.id);
+                        setExpiryBand("all");
+                        if (filter.id !== "all") {
+                          setDateFrom("");
+                          setDateTo("");
+                        }
+                      }}
+                      className={`rounded-md border-2 border-black px-3 py-2 text-xs font-black uppercase transition ${
+                        selected
+                          ? "bg-[#EE3124] text-white shadow-[2px_2px_0_0_#000]"
+                          : "bg-white text-black hover:bg-stone-50"
+                      }`}
                     >
-                      <option value="expiry">Gần hết hạn</option>
-                      <option value="quantity">Tồn thấp trước</option>
-                      <option value="name">Tên A-Z</option>
-                    </select>
-                  </div>
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="text-xs font-black uppercase text-black">
+                  Từ ngày
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(event) => {
+                      setDateFrom(event.target.value);
+                      setQuickFilter("all");
+                      setExpiryBand("all");
+                    }}
+                    className="mt-1 block h-10 rounded-md border-2 border-black bg-white px-2 text-sm font-semibold outline-none focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
+                  />
                 </label>
-
-                <button
-                  type="button"
-                  onClick={exportFilteredItems}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-4 py-3 text-sm font-black uppercase text-white transition hover:bg-[#016a34]"
-                >
-                  <Download size={17} />
-                  Xuất Excel theo bộ lọc
-                </button>
-              </aside>
-
-              <div>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-lg font-black uppercase text-black">
-                      {activeGroup.id === ALL_GROUP_ID ? "Tất cả sản phẩm" : activeCategory?.name}
-                    </h3>
-                    <p className="text-sm text-stone-500">
-                      {visibleItems.length} sản phẩm đang hiển thị
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase text-stone-500">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
-                      <CheckCircle2 size={14} />
-                      An toàn
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-orange-700">
-                      <AlertTriangle size={14} />
-                      Cần theo dõi
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-red-700">
-                      <Trash2 size={14} />
-                      Can thiệp
-                    </span>
-                  </div>
-                </div>
-
-                {visibleItems.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
-                    {visibleItems.map((item) => (
-                      <InventoryCard
-                        key={item.id}
-                        item={item}
-                        onOpen={setEditingItemId}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid min-h-64 place-items-center rounded-md border-2 border-dashed border-black bg-stone-50 p-8 text-center">
-                    <div>
-                      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-white">
-                        <Package2 size={28} />
-                      </div>
-                      <p className="mt-4 text-base font-black uppercase text-black">
-                        Chưa có sản phẩm phù hợp
-                      </p>
-                      <p className="mt-1 max-w-sm text-sm leading-6 text-stone-600">
-                        Hãy đổi bộ lọc hoặc từ khóa tìm kiếm để xem lại danh sách
-                        hàng trong nhóm này.
-                      </p>
-                    </div>
-                  </div>
+                <label className="text-xs font-black uppercase text-black">
+                  Đến ngày
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(event) => {
+                      setDateTo(event.target.value);
+                      setQuickFilter("all");
+                      setExpiryBand("all");
+                    }}
+                    className="mt-1 block h-10 rounded-md border-2 border-black bg-white px-2 text-sm font-semibold outline-none focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
+                  />
+                </label>
+                {(dateFrom || dateTo || quickFilter !== "all" || expiryBand !== "all") && (
+                  <button
+                    type="button"
+                    onClick={clearDateFilters}
+                    className="h-10 rounded-md border-2 border-black bg-white px-3 text-xs font-black uppercase text-black transition hover:bg-stone-50"
+                  >
+                    Xóa lọc
+                  </button>
                 )}
               </div>
             </div>
           </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block w-full sm:max-w-sm">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Tìm sản phẩm hoặc NCC..."
+                className="h-11 w-full rounded-md border-2 border-black bg-white pl-10 pr-3 text-sm font-semibold outline-none transition focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
+              />
+            </label>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
+              {[
+                ["15-30", "bg-amber-400"],
+                ["8-14", "bg-orange-500"],
+                ["1-7", "bg-red-600"],
+              ].map(([band, color]) => (
+                <button
+                  key={band}
+                  type="button"
+                  onClick={() => {
+                    setExpiryBand((current) => (current === band ? "all" : band));
+                    setQuickFilter("all");
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded px-2 py-1 transition ${
+                    expiryBand === band
+                      ? "bg-black text-white"
+                      : "hover:bg-white hover:text-black"
+                  }`}
+                >
+                  <span className={`h-3 w-3 rounded-full ${color}`} /> {band}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filteredRecords.length > 0 ? (
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={toggleAllFiltered}
+                className="mb-3 inline-flex items-center gap-2 rounded-md border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase text-black transition hover:bg-stone-50"
+              >
+                <span className="grid h-4 w-4 place-items-center rounded border-2 border-black">
+                  {allFilteredSelected && <Check size={12} strokeWidth={4} />}
+                </span>
+                Chọn tất cả kết quả
+              </button>
+
+              <div className="space-y-3">
+                {filteredRecords.map((record) => {
+                  const days = getDaysUntil(record.expiryDate);
+                  const status = getExpiryStatus(days);
+                  const checked = selectedIds.has(record.id);
+
+                  return (
+                    <article
+                      key={record.id}
+                      onClick={() => toggleSelected(record.id)}
+                      className={`relative cursor-pointer rounded-md border-2 ${status.cardBorder} bg-white px-2.5 py-2 transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 ${status.cardShadow} ${status.card}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleSelected(record.id);
+                        }}
+                        className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded border-2 border-black bg-[var(--ui-accent)] shadow-none ${
+                          checked ? "" : "hidden"
+                        }`}
+                        aria-label={checked ? "Bỏ chọn" : "Chọn bản ghi"}
+                      >
+                        {checked && <Check size={15} strokeWidth={4} />}
+                      </button>
+
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 pl-16 pr-8 md:gap-x-3 md:pl-20">
+                        <div
+                          className={`absolute bottom-2 left-2 top-2 w-14 overflow-hidden rounded border-2 ${status.cardBorder} bg-white md:w-16`}
+                        >
+                          {record.productImage ? (
+                            <img
+                              src={record.productImage}
+                              alt={record.productName}
+                              className="h-full w-full object-contain p-1"
+                            />
+                          ) : (
+                            <div className="grid h-full place-items-center text-slate-300">
+                              <PackageOpen size={18} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h2 className="line-clamp-1 text-sm font-black uppercase leading-tight tracking-tight text-black sm:text-base">
+                              {record.productName}
+                            </h2>
+                            {record.variantSize && (
+                              <span className="shrink-0 text-xs font-bold text-slate-600">
+                                ({record.variantSize})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid w-full grid-cols-[0.65fr_1fr_1.35fr] gap-1 text-[10px] md:flex md:w-auto md:flex-none md:items-center md:gap-2 md:text-xs">
+                          <div className="min-w-0 whitespace-nowrap rounded border border-[#008061] px-1 py-1 text-center md:px-2">
+                            <span className="font-bold text-slate-500">SL </span>
+                            <span className="font-black text-black">{record.quantity}</span>
+                          </div>
+                          <div className="min-w-0 whitespace-nowrap rounded border border-[#008061] px-1 py-1 text-center md:px-2">
+                            <span className="font-bold text-slate-500">&lt; </span>
+                            <span className="font-black text-black">
+                              {days === null
+                                ? "--"
+                                : days < 0
+                                  ? `${Math.abs(days)} ngày quá hạn`
+                                  : `${days} ngày`}
+                            </span>
+                          </div>
+                          <div
+                            className={`flex min-w-0 items-center justify-center gap-0.5 whitespace-nowrap rounded border-2 px-1 py-1 text-[9px] md:gap-1 md:px-2 md:text-xs ${
+                              days === null || days < 7
+                                ? "border-red-600 bg-red-100 text-red-700"
+                                : days <= 14
+                                  ? "border-orange-500 bg-orange-100 text-orange-800"
+                                  : days <= 30
+                                    ? "border-amber-500 bg-amber-100 text-amber-900"
+                                    : "border-emerald-600 bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            <span className="font-black">HSD </span>
+                            <span className="font-black">
+                              {formatDate(record.expiryDate)}
+                            </span>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <div className="mt-1 flex min-w-0 items-center gap-2 pl-16 text-[10px] text-slate-500 md:gap-3 md:pl-20">
+                        <span className="inline-flex min-w-0 items-center gap-1 rounded border border-[#008061] bg-[#EAF8F3] px-2 py-0.5 font-bold text-[#006C52]">
+                          <span className="font-black uppercase">NCC</span>
+                          <span className="truncate uppercase text-black">{record.supplier}</span>
+                        </span>
+                        <span className="shrink-0">{formatDateTime(record.savedAt)}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 grid min-h-64 place-items-center rounded-md border-2 border-dashed border-black bg-stone-50 p-8 text-center">
+              <div>
+                <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-white shadow-[3px_3px_0_0_#000]">
+                  <CalendarDays size={28} />
+                </div>
+                <p className="mt-4 text-base font-black uppercase text-black">
+                  Chưa có dữ liệu tồn kho
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Hãy nhấn vào một card sản phẩm để thêm lô hàng đầu tiên.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {editingItem && (
-        <InventoryDrawer
-          item={editingItem}
-          onClose={() => setEditingItemId(null)}
-          onAction={handleAction}
-          onQuantityChange={handleQuantityChange}
-          onFieldChange={handleFieldChange}
-          onAutoDate={handleAutoDate}
-        />
-      )}
     </section>
   );
 }
