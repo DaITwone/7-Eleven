@@ -164,6 +164,12 @@ export const productCatalog = [
             name: "Meiji Matcha Latte IX",
             variants: [
               {
+                id: "meiji-matcha-s",
+                size: "S",
+                price: null,
+                image: "/images/products/meiji-matcha-latte-m.png",
+              },
+              {
                 id: "meiji-matcha-m",
                 size: "M",
                 price: 40000,
@@ -181,6 +187,12 @@ export const productCatalog = [
             id: "meiji-ube-matcha",
             name: "Meiji Ube Matcha IX",
             variants: [
+              {
+                id: "meiji-ube-matcha-s",
+                size: "S",
+                price: null,
+                image: "/images/products/meiji-ube-matcha-m.png",
+              },
               {
                 id: "meiji-ube-matcha-m",
                 size: "M",
@@ -200,6 +212,12 @@ export const productCatalog = [
             name: "Meiji Coco Matcha IX",
             variants: [
               {
+                id: "meiji-coco-matcha-s",
+                size: "S",
+                price: null,
+                image: "/images/products/meiji-coco-matcha-m.png",
+              },
+              {
                 id: "meiji-coco-matcha-m",
                 size: "M",
                 price: 38000,
@@ -217,6 +235,12 @@ export const productCatalog = [
             id: "meiji-pistachio-matcha",
             name: "Meiji Pistachio Matcha IX",
             variants: [
+              {
+                id: "meiji-pistachio-matcha-s",
+                size: "S",
+                price: null,
+                image: "/images/products/meiji-pistachio-matcha-m.png",
+              },
               {
                 id: "meiji-pistachio-matcha-m",
                 size: "M",
@@ -10038,6 +10062,7 @@ export const productCatalog = [
 ];
 
 export const formatPrice = (price) =>
+  price == null ? "" :
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     price,
   );
