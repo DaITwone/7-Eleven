@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import CourseDetail from '../components/training/CourseDetail'
 import CourseList from '../components/training/CourseList'
+import DrinkRecipes from '../components/training/DrinkRecipes'
 import { trainingCourses } from '../data/trainingCourses'
 import { getQuizByCourseId } from '../data/trainingQuizzes'
 
@@ -16,6 +17,10 @@ export default function DaoTao() {
   const closeCourse = () => {
     setSelectedCourse(null)
     setShowQuiz(false)
+  }
+
+  if (selectedCourse?.type === 'recipes') {
+    return <DrinkRecipes onBack={closeCourse} />
   }
 
   if (selectedCourse) {

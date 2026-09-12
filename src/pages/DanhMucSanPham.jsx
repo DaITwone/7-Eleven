@@ -203,7 +203,7 @@ function StripeBar({ className = "" }) {
   );
 }
 
-function ProductCard({ product, onOpen }) {
+function ProductCard({ product, onOpen, showCommerceInfo = true }) {
   const variants = product.variants ?? [product];
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0].id);
 
@@ -217,7 +217,9 @@ function ProductCard({ product, onOpen }) {
       tabIndex={0}
       onClick={() => onOpen(product, selectedVariant)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
           onOpen(product, selectedVariant);
         }
       }}
@@ -242,7 +244,7 @@ function ProductCard({ product, onOpen }) {
           {product.name}
         </h3>
 
-        {variants.length > 1 && (
+        {showCommerceInfo && variants.length > 1 && (
           <div
             className="mt-2 flex flex-wrap gap-1.5"
             aria-label="Chọn kích cỡ"
@@ -271,20 +273,26 @@ function ProductCard({ product, onOpen }) {
           </div>
         )}
 
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[9px] font-black uppercase tracking-wider text-[#008061]">
-            Giá
-          </span>
-          <span className="whitespace-nowrap rounded bg-[#EE3124] px-2 py-1 text-xs font-black leading-none text-white sm:text-sm">
-            {formatPrice(selectedVariant.price)}
-          </span>
-        </div>
+        {showCommerceInfo && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[9px] font-black uppercase tracking-wider text-[#008061]">
+              Giá
+            </span>
+            <span className="whitespace-nowrap rounded bg-[#EE3124] px-2 py-1 text-xs font-black leading-none text-white sm:text-sm">
+              {formatPrice(selectedVariant.price)}
+            </span>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-export default function DanhMucSanPham({ groupId }) {
+export default function DanhMucSanPham({
+  groupId,
+  onProductOpen,
+  showCommerceInfo = true,
+}) {
   const activeGroup =
     productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
 
@@ -413,8 +421,11 @@ export default function DanhMucSanPham({ groupId }) {
                   <ProductCard
                     key={`${product.id ?? ""}|${product.name ?? ""}|${product.image ?? ""}`}
                     product={product}
+                    showCommerceInfo={showCommerceInfo}
                     onOpen={(openedProduct, variant) =>
-                      setSelectedProduct({ product: openedProduct, variant })
+                      onProductOpen
+                        ? onProductOpen(openedProduct, variant)
+                        : setSelectedProduct({ product: openedProduct, variant })
                     }
                   />
                 ))}

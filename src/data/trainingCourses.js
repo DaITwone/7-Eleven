@@ -7,9 +7,18 @@ import {
   Star,
   TrendingUp,
   Users,
+  CupSoda,
 } from 'lucide-react'
 
 export const trainingCourses = [
+  {
+    id: 'cong-thuc-mon-nuoc',
+    type: 'recipes',
+    title: 'Công thức món nước',
+    description: 'Tra cứu công thức pha chế theo món và kích cỡ, kèm hình ảnh minh họa.',
+    icon: CupSoda,
+    materials: [],
+  },
   {
     id: 1,
     title: 'Lịch sử hình thành 7-Eleven',
