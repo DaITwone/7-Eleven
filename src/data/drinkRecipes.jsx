@@ -484,7 +484,6 @@ export const drinkRecipes = {
           name="Foam chuối"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-sunny-banana.png",
@@ -504,7 +503,6 @@ export const drinkRecipes = {
           name="Foam chuối"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-sunny-banana.png",
@@ -524,7 +522,6 @@ export const drinkRecipes = {
           name="Foam chuối"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-sunny-banana.png",
@@ -544,7 +541,6 @@ export const drinkRecipes = {
           name="Foam dâu"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1 bộ" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-pinky-strawberry.png",
@@ -564,7 +560,6 @@ export const drinkRecipes = {
           name="Foam dâu"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-pinky-strawberry.png",
@@ -584,7 +579,6 @@ export const drinkRecipes = {
           name="Foam dâu"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-pinky-strawberry.png",
@@ -604,7 +598,6 @@ export const drinkRecipes = {
           name="Foam choco"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-browny-choco-matcha.png",
@@ -624,7 +617,6 @@ export const drinkRecipes = {
           name="Foam choco"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1 bộ" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-browny-choco-matcha.png",
@@ -644,7 +636,6 @@ export const drinkRecipes = {
           name="Foam choco"
           quantity="Xịt 2 vòng, cách miệng ly 1 cm"
         />
-        <IngredientRow name="Top seal và dao rọc nhựa" quantity="1 bộ" />
       </RecipeCard>
     ),
     image: "/training/recipes/meiji-browny-choco-matcha.png",
