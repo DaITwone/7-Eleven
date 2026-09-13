@@ -138,18 +138,13 @@ export default function DrinkRecipes({ onBack }) {
         <ArrowLeft size={18} /> Quay lại đào tạo
       </button>
       <h1 className="text-2xl font-extrabold text-brand-red md:text-3xl">CÔNG THỨC MÓN NƯỚC</h1>
-      <p className="mt-2 text-sm text-slate-500">Chọn món để xem công thức pha chế.</p>
-      <div className="my-5 flex flex-wrap gap-3" aria-label="Nhóm thức uống">
-        {groups.map((group) => (
-          <button key={group.id} type="button" aria-pressed={groupId === group.id} onClick={() => setGroupId(group.id)} className={`rounded-lg border-2 border-brand-green px-4 py-2 text-sm font-bold ${groupId === group.id ? 'bg-brand-green text-white' : 'bg-white text-brand-green hover:bg-emerald-50'}`}>
-            {group.name}
-          </button>
-        ))}
-      </div>
+      <p className="mb-5 mt-2 text-sm text-slate-500">Chọn món để xem công thức pha chế.</p>
       <DanhMucSanPham
         key={groupId}
         groupId={groupId}
         showCommerceInfo={false}
+        groupOptions={groups}
+        onGroupChange={setGroupId}
         onProductOpen={(product, variant) => setSelected({ product, variant })}
       />
       {selected && <RecipeModal product={selected.product} variant={selected.variant} onClose={() => setSelected(null)} />}

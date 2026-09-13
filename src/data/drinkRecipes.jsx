@@ -82,6 +82,7 @@ function createCalamansiRecipes(productId, productName) {
           <IngredientRow name="Tắc tươi" quantity={`${kumquat} trái`} />
         </RecipeCard>
       ),
+      image: `/training/recipes/${productId}.png`,
     };
 
     // Hai nhóm trong danh mục hiện dùng hai kiểu ID size khác nhau.

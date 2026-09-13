@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { ImageOff, PackageOpen, Search } from "lucide-react";
+import { ChevronDown, ImageOff, PackageOpen, Search } from "lucide-react";
 
 import { formatPrice, productCatalog } from "../data/productCatalog";
 
@@ -292,11 +292,14 @@ export default function DanhMucSanPham({
   groupId,
   onProductOpen,
   showCommerceInfo = true,
+  groupOptions,
+  onGroupChange,
 }) {
   const activeGroup =
     productCatalog.find((group) => group.id === groupId) ?? productCatalog[0];
 
   const [categoryId, setCategoryId] = useState(null);
+  const [groupMenuOpen, setGroupMenuOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -359,10 +362,63 @@ export default function DanhMucSanPham({
         <div className="p-5 md:p-7">
           {/* Tiêu đề + tìm kiếm */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="inline-block rounded-sm bg-[#007A3D] px-2 py-0.5 text-[18px] font-black uppercase tracking-wide text-white">
-                {activeGroup.name}
-              </h2>
+            <div className="min-w-0">
+              {groupOptions?.length > 0 && onGroupChange ? (
+                <div
+                  className="relative inline-block max-w-full"
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === "mouse") setGroupMenuOpen(true);
+                  }}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === "mouse") setGroupMenuOpen(false);
+                  }}
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) setGroupMenuOpen(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setGroupMenuOpen(false);
+                      event.currentTarget.querySelector("button")?.focus();
+                    }
+                  }}
+                >
+                  <h2>
+                    <button
+                      type="button"
+                      aria-expanded={groupMenuOpen}
+                      onClick={() => setGroupMenuOpen((open) => !open)}
+                      className="flex min-h-11 max-w-full items-center gap-3 rounded-sm bg-[#007A3D] px-3 py-2 text-left text-[18px] font-black uppercase tracking-wide text-white transition-colors hover:bg-[#006632] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
+                    >
+                      {activeGroup.name}
+                      <ChevronDown size={20} aria-hidden="true" className={`shrink-0 transition-transform ${groupMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
+                  </h2>
+                  {groupMenuOpen && (
+                    <div className="absolute left-0 top-full z-20 w-max min-w-full max-w-[calc(100vw-4rem)] pt-2">
+                      <div aria-label="Nhóm thức uống" className="overflow-hidden rounded-lg border border-emerald-200 bg-white p-1 shadow-lg">
+                        {groupOptions.map((group) => (
+                          <button
+                            key={group.id}
+                            type="button"
+                            aria-pressed={activeGroup.id === group.id}
+                            onClick={() => {
+                              setGroupMenuOpen(false);
+                              onGroupChange(group.id);
+                            }}
+                            className={`block w-full rounded-md px-3 py-3 text-left text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-green ${activeGroup.id === group.id ? "bg-brand-green text-white" : "text-brand-green hover:bg-emerald-50"}`}
+                          >
+                            {group.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <h2 className="inline-block rounded-sm bg-[#007A3D] px-2 py-0.5 text-[18px] font-black uppercase tracking-wide text-white">
+                  {activeGroup.name}
+                </h2>
+              )}
             </div>
 
             <label className="relative block w-full md:max-w-xs">
