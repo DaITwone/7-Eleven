@@ -124,6 +124,20 @@ export default function MTOs() {
     rows.slice(0, Math.ceil(rows.length / 2)),
     rows.slice(Math.ceil(rows.length / 2)),
   ];
+  const printMTOs = () => {
+    const previousTitle = document.title;
+    const today = new Date();
+    const fileDate = [
+      String(today.getDate()).padStart(2, "0"),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      today.getFullYear(),
+    ].join(".");
+    document.title = `MTOs - ${fileDate}`;
+    window.addEventListener("afterprint", () => {
+      document.title = previousTitle;
+    }, { once: true });
+    window.print();
+  };
 
   return (
     <>
@@ -138,7 +152,7 @@ export default function MTOs() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => downloadExcel(rows)} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-black uppercase hover:bg-orange-50"><FileSpreadsheet size={18} /> Excel</button>
-              <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-3 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] hover:bg-[#005c3a]"><Printer size={18} /> PDF</button>
+              <button type="button" onClick={printMTOs} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-3 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] hover:bg-[#005c3a]"><Printer size={18} /> PDF</button>
               <button type="button" onClick={() => { if (window.confirm("Xóa toàn bộ số lượng đã nhập?")) setRecords({}); }} className="inline-flex items-center gap-2 rounded-md border-2 border-black px-3 py-2 text-sm font-black uppercase hover:bg-stone-100"><RotateCcw size={17} /> Làm mới</button>
             </div>
           </div>
