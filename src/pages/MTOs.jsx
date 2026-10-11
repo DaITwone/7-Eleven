@@ -497,7 +497,7 @@ export default function MTOs() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="mto-inventory-title"
-            className="hide-scrollbar max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border-2 border-black bg-white shadow-[5px_5px_0_0_#000]"
+            className="hide-scrollbar h-[100dvh] max-h-[100dvh] w-full max-w-5xl overflow-y-auto rounded-none border-0 bg-white shadow-[5px_5px_0_0_#000] sm:h-auto sm:max-h-[92vh] sm:rounded-2xl sm:border-2"
           >
             <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b-2 border-black bg-[#007A3D] p-4 text-white">
               <div>
@@ -570,7 +570,7 @@ export default function MTOs() {
                       phẩm phù hợp, chọn đúng mặt hàng trước khi áp dụng.
                     </p>
                   )}
-                  <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <div className="hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
                     <table className="w-full min-w-[680px] border-collapse text-sm">
                       <thead className="bg-slate-100 text-left text-xs font-black uppercase">
                         <tr>
@@ -597,14 +597,8 @@ export default function MTOs() {
                             ? (rows.find((row) => row.id === target.id)
                                 ?.total ?? 0)
                             : null;
-                          const applied =
-                            target &&
-                            Object.prototype.hasOwnProperty.call(
-                              appliedInventory ?? {},
-                              target.id,
-                            );
                           const difference =
-                            target && applied
+                            target && Number.isFinite(Number(entry.quantity))
                               ? Number(entry.quantity) - actual
                               : null;
                           return (
@@ -674,9 +668,9 @@ export default function MTOs() {
                                 {target ? actual : "—"}
                               </td>
                               <td
-                                className={`p-2 font-black ${target && applied ? (difference !== 0 ? "text-red-700" : "text-emerald-700") : "text-slate-400"}`}
+                                className={`p-2 font-black ${difference !== null ? (difference !== 0 ? "text-red-700" : "text-emerald-700") : "text-slate-400"}`}
                               >
-                                {target && applied
+                                {difference !== null
                                   ? difference
                                   : "Chưa áp dụng"}
                               </td>
@@ -686,12 +680,39 @@ export default function MTOs() {
                       </tbody>
                     </table>
                   </div>
+                  <div className="space-y-2 sm:hidden">
+                    {importedInventory.map((entry, index) => {
+                      const ambiguous = entry.matches.length !== 1 || !entry.matches[0] || normalizeProductName(entry.name) !== normalizeProductName(entry.matches[0]?.name);
+                      const target = entry.matches.find((item) => item.id === entry.selectedId) ?? (!ambiguous ? entry.matches[0] : null);
+                      const actual = target ? rows.find((row) => row.id === target.id)?.total ?? 0 : null;
+                      const difference = target && Number.isFinite(Number(entry.quantity)) ? Number(entry.quantity) - actual : null;
+                      return (
+                        <article key={`mobile-${entry.name}-${index}`} className={`rounded-lg border p-3 ${difference !== null && difference < 0 ? "border-amber-500 bg-amber-200" : ambiguous ? "border-amber-400 bg-amber-100" : "border-slate-200 bg-white"}`}>
+                          <p className="font-black">{entry.name}</p>
+                          <div className="mt-2">
+                            <label className="mb-1 block text-[11px] font-bold uppercase text-slate-500">Mặt hàng trên trang</label>
+                            {ambiguous ? (
+                              <select value={entry.selectedId ?? ""} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, selectedId: event.target.value } : row))} className="w-full rounded border border-amber-500 bg-white px-2 py-2 text-sm">
+                                <option value="">{entry.matches.length ? `Chọn mặt hàng (${entry.matches.length} phù hợp)` : "Không tìm thấy — sửa tên dòng"}</option>
+                                {entry.matches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                              </select>
+                            ) : <p className="text-sm font-bold">{target?.name}</p>}
+                          </div>
+                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                            <label className="min-w-0"><span className="mb-1 block font-bold text-slate-500">Tồn hệ thống</span><input type="number" min="0" step="any" value={entry.quantity} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: event.target.value === "" ? "" : Number(event.target.value) } : row))} className="w-full rounded border border-slate-300 px-2 py-2 text-sm" /></label>
+                            <div><span className="mb-1 block font-bold text-slate-500">Thực tế</span><p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">{target ? actual : "—"}</p></div>
+                            <div><span className="mb-1 block font-bold text-slate-500">Chênh lệch</span><p className={`rounded px-2 py-2 text-sm font-black ${difference !== null && difference < 0 ? "bg-amber-300 text-amber-950" : difference === 0 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{difference ?? "—"}</p></div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
                   <p className="text-xs text-slate-500">
                     Chênh lệch = Tồn hệ thống − Tồn thực tế. Những mặt hàng
                     không có trong danh sách dán sẽ được xem là tồn hệ thống 0
                     sau khi áp dụng.
                   </p>
-                  <div className="hide-scrollbar max-h-48 overflow-y-auto rounded-lg border border-slate-200">
+                  <div className="hide-scrollbar hidden max-h-48 overflow-y-auto rounded-lg border border-slate-200 sm:block">
                     <table className="w-full border-collapse text-sm">
                       <thead className="sticky top-0 bg-slate-100 text-left text-xs font-black uppercase">
                         <tr>
@@ -725,6 +746,15 @@ export default function MTOs() {
                           ))}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="space-y-2 sm:hidden">
+                    {rows.filter((row) => !Object.prototype.hasOwnProperty.call(systemByItem, row.id) && row.total !== 0).map((row) => (
+                      <article key={`missing-mobile-${row.id}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border border-amber-500 bg-amber-200 p-3 text-sm">
+                        <span className="font-bold">{row.name}</span>
+                        <span><span className="block text-[10px] font-bold uppercase text-slate-600">Thực tế</span>{row.total}</span>
+                        <span className="font-black text-red-700"><span className="block text-[10px] uppercase text-slate-600">Lệch</span>{-row.total}</span>
+                      </article>
+                    ))}
                   </div>
                   <div className="flex justify-end">
                     <button
