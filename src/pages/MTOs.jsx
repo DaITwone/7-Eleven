@@ -610,7 +610,7 @@ export default function MTOs() {
                           return (
                             <tr
                               key={`${entry.name}-${index}`}
-                              className={`border-t border-slate-200 ${ambiguous ? "bg-amber-100" : ""}`}
+                              className={`border-t border-slate-200 ${difference !== null && difference < 0 ? "bg-amber-200" : ambiguous ? "bg-amber-100" : ""}`}
                             >
                               <td className="p-2 font-bold">{entry.name}</td>
                               <td className="p-2">
@@ -714,7 +714,7 @@ export default function MTOs() {
                           .map((row) => (
                             <tr
                               key={row.id}
-                              className="border-t border-slate-200"
+                              className="border-t border-slate-200 bg-amber-200"
                             >
                               <td className="p-2 font-bold">{row.name}</td>
                               <td className="p-2">{row.total}</td>
@@ -840,7 +840,11 @@ export default function MTOs() {
                     <tr
                       key={row.id}
                       className={
-                        rowIndex % 2 === 0 ? "bg-white" : "bg-[#F8FCF9]"
+                        row.difference !== null && row.difference < 0
+                          ? "bg-amber-200"
+                          : rowIndex % 2 === 0
+                            ? "bg-white"
+                            : "bg-[#F8FCF9]"
                       }
                     >
                       <td className="border-b border-l-2 border-r border-[#00843D]/30 p-1 text-center font-bold">
