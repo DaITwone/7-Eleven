@@ -5,6 +5,7 @@ import DaoTao from "./pages/DaoTao";
 import PhanCongCa from "./pages/PhanCongCa";
 import TonKho from "./pages/TonKho";
 import DanhMucSanPham from "./pages/DanhMucSanPham";
+import MTOs from "./pages/MTOs";
 
 import { productCatalog } from "./data/productCatalog";
 
@@ -12,6 +13,11 @@ const DEFAULT_PAGE = "daoTao";
 const DEFAULT_GROUP_ID = productCatalog[0].id;
 
 export default function App() {
+  // MTOs là màn hình độc lập, chỉ truy cập bằng URL /mtos và không dùng Sidebar.
+  if (window.location.pathname.replace(/\/+$/, "") === "/mtos") {
+    return <MTOs />;
+  }
+
   const [activePage, setActivePage] = useState(() => {
     return (
       localStorage.getItem("activePage") ||

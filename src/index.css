@@ -66,6 +66,10 @@
     width: 100% !important;
   }
 
+  .mto-actions {
+    display: none !important;
+  }
+
   /* Chỉ hiển thị bảng lịch dành cho bản in */
   .no-print {
     display: none !important;
