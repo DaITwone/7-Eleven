@@ -1,9 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, ImageOff, Plus, Printer, RotateCcw, Trash2, X } from "lucide-react";
+import { ClipboardPaste, FileSpreadsheet, ImageOff, Plus, Printer, RotateCcw, Trash2, X } from "lucide-react";
 import { mtoItems } from "../data/mtos";
 
 const STORAGE_KEY = "mtoInventoryEntries";
+const SYSTEM_INVENTORY_KEY = "mtoSystemInventory";
 const DRAFT_STORAGE_PREFIX = "mtoQuantityDraft:";
+
+function normalizeProductName(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function parseSystemInventory(text) {
+  return text.split(/\r?\n/).map((line) => {
+    const columns = line.split(/[\t;,]/).map((value) => value.trim());
+    if (columns.length < 2) return null;
+    const quantityText = columns[columns.length - 1].replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+    const quantity = Number(quantityText);
+    const name = columns.slice(0, -1).join(" ").trim();
+    if (/^(t[eê]n( s[aả]n ph[aẩ]m)?|s[oố] l[uư][oợ]ng( t[oồ]n( h[eệ] th[oố]ng)?)?)$/i.test(name)) return null;
+    return name && Number.isFinite(quantity) && quantity >= 0 ? { name, quantity } : null;
+  }).filter(Boolean);
+}
+
+function findProductMatches(name) {
+  const normalized = normalizeProductName(name);
+  if (!normalized) return [];
+  const exact = mtoItems.filter((item) => normalizeProductName(item.name) === normalized);
+  if (exact.length) return exact;
+  const words = normalized.split(" ").filter(Boolean);
+  return mtoItems.filter((item) => {
+    const candidate = normalizeProductName(item.name);
+    return candidate.includes(normalized) || normalized.includes(candidate) || words.some((word) => word.length >= 3 && candidate.split(" ").includes(word));
+  });
+}
 
 function readEntries() {
   try {
@@ -14,9 +43,18 @@ function readEntries() {
   }
 }
 
+function readSystemInventory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SYSTEM_INVENTORY_KEY) ?? "null");
+    return saved && typeof saved === "object" ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
 function downloadExcel(rows) {
-  const tableRows = rows.map((row) => `<tr><td>${row.name}</td><td>${row.total}</td><td>${row.entries}</td></tr>`).join("");
-  const workbook = `\ufeff<html><head><meta charset="utf-8"></head><body><table><thead><tr><th>Mặt hàng</th><th>Tổng số lượng</th><th>Số lần nhập</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+  const tableRows = rows.map((row) => `<tr><td>${row.name}</td><td>${row.systemTotal ?? ""}</td><td>${row.total}</td><td>${row.systemTotal == null ? "" : row.systemTotal - row.total}</td></tr>`).join("");
+  const workbook = `\ufeff<html><head><meta charset="utf-8"></head><body><table><thead><tr><th>Mặt hàng</th><th>Tồn hệ thống</th><th>Tồn thực tế</th><th>Chênh lệch</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
   const blob = new Blob([workbook], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -112,14 +150,45 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
 export default function MTOs() {
   const [records, setRecords] = useState(readEntries);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [inventoryText, setInventoryText] = useState("");
+  const [systemInventory, setSystemInventory] = useState(null);
+  const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(records)), [records]);
 
   const rows = useMemo(() => mtoItems.map((item) => {
     const entries = records[item.id] ?? [];
-    return { id: item.id, image: item.image, name: item.name, entries: entries.length, total: entries.reduce((sum, value) => sum + value, 0) };
-  }), [records]);
+    const total = entries.reduce((sum, value) => sum + value, 0);
+    const hasSystemInventory = appliedInventory !== null && Object.prototype.hasOwnProperty.call(appliedInventory, item.id);
+    const systemTotal = hasSystemInventory ? Number(appliedInventory[item.id]) : appliedInventory !== null ? 0 : null;
+    return { id: item.id, image: item.image, name: item.name, entries: entries.length, total, systemTotal, difference: systemTotal === null ? null : systemTotal - total };
+  }), [records, appliedInventory]);
   const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const importedInventory = useMemo(() => {
+    if (!Array.isArray(systemInventory)) return [];
+    return systemInventory.map((entry) => ({ ...entry, matches: findProductMatches(entry.name) }));
+  }, [systemInventory]);
+  const systemByItem = useMemo(() => {
+    const totals = {};
+    (appliedInventory ? Object.entries(appliedInventory).map(([id, quantity]) => ({ id, quantity })) : []).forEach(({ id, quantity }) => {
+      totals[id] = quantity;
+    });
+    return totals;
+  }, [appliedInventory]);
+  const applySystemInventory = () => {
+    const next = {};
+    let unresolved = false;
+    importedInventory.forEach((entry) => {
+      const target = entry.matches.find((item) => item.id === entry.selectedId) ?? (entry.matches.length === 1 && normalizeProductName(entry.name) === normalizeProductName(entry.matches[0].name) ? entry.matches[0] : null);
+      if (!target || !Number.isFinite(Number(entry.quantity)) || Number(entry.quantity) < 0) { unresolved = true; return; }
+      next[target.id] = (next[target.id] ?? 0) + Number(entry.quantity);
+    });
+    if (unresolved) return;
+    setAppliedInventory(next);
+    localStorage.setItem(SYSTEM_INVENTORY_KEY, JSON.stringify(next));
+    setShowInventoryModal(false);
+  };
   const printTables = [
     rows.slice(0, Math.ceil(rows.length / 2)),
     rows.slice(Math.ceil(rows.length / 2)),
@@ -141,7 +210,7 @@ export default function MTOs() {
 
   return (
     <>
-      <style>{`.mto-print-sheet { display: none; } @media print { .mto-print-sheet { display: block; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
+      <style>{`.mto-print-sheet { display: none; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
     <main className="no-print min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
       <section className="mx-auto max-w-[1500px] overflow-hidden rounded-xl border-2 border-black bg-white">
         <div className="h-2" style={{ background: "repeating-linear-gradient(-35deg, #FF8200 0 22px, #EE3124 22px 44px, #007A3D 44px 66px)" }} />
@@ -152,6 +221,7 @@ export default function MTOs() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => downloadExcel(rows)} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-black uppercase hover:bg-orange-50"><FileSpreadsheet size={18} /> Excel</button>
+              <button type="button" onClick={() => setShowInventoryModal(true)} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#FF8200] px-3 py-2 text-sm font-black uppercase text-black hover:bg-orange-400"><ClipboardPaste size={18} /> Dán tồn hệ thống</button>
               <button type="button" onClick={printMTOs} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-3 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] hover:bg-[#005c3a]"><Printer size={18} /> PDF</button>
               <button type="button" onClick={() => { if (window.confirm("Xóa toàn bộ số lượng đã nhập?")) setRecords({}); }} className="inline-flex items-center gap-2 rounded-md border-2 border-black px-3 py-2 text-sm font-black uppercase hover:bg-stone-100"><RotateCcw size={17} /> Làm mới</button>
             </div>
@@ -162,6 +232,51 @@ export default function MTOs() {
         </div>
       </section>
     </main>
+      {showInventoryModal && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setShowInventoryModal(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="mto-inventory-title" className="hide-scrollbar max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border-2 border-black bg-white shadow-[5px_5px_0_0_#000]">
+            <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b-2 border-black bg-[#007A3D] p-4 text-white">
+              <div><h2 id="mto-inventory-title" className="text-lg font-black uppercase">Đối chiếu tồn hệ thống</h2><p className="text-xs font-semibold text-white/80">Dán hai cột Excel: tên sản phẩm, số lượng tồn (mỗi dòng một sản phẩm).</p></div>
+              <button type="button" onClick={() => setShowInventoryModal(false)} className="rounded-md p-1 hover:bg-white/20" aria-label="Đóng"><X size={22} /></button>
+            </header>
+            <div className="space-y-4 p-4">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <textarea value={inventoryText} onChange={(event) => setInventoryText(event.target.value)} rows={5} placeholder={'Tên sản phẩm\tSố lượng tồn\nTrứng\t12\nSữa Meiji\t8'} className="min-h-28 w-full rounded-lg border-2 border-slate-300 p-3 font-mono text-sm outline-none focus:border-[#007A3D]" />
+                <button type="button" onClick={() => setSystemInventory(parseSystemInventory(inventoryText))} className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-lg border-2 border-black bg-[#FF8200] px-4 py-2 text-sm font-black uppercase hover:bg-orange-400"><ClipboardPaste size={18} /> Đối chiếu</button>
+              </div>
+              {systemInventory && <>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><p className="font-bold">Đã đọc {importedInventory.length} dòng. Tồn hệ thống có thể nhập lại tại đây.</p><button type="button" onClick={() => { setSystemInventory(null); setAppliedInventory(null); setInventoryText(""); localStorage.removeItem(SYSTEM_INVENTORY_KEY); }} className="rounded-md border border-slate-300 px-3 py-1.5 font-bold hover:bg-slate-50">Xóa dữ liệu đã dán</button></div>
+                {importedInventory.some((entry) => entry.matches.length !== 1) && <p className="rounded-md border border-amber-400 bg-amber-100 p-3 text-sm font-bold text-amber-950">Dòng màu vàng cần nhập/chọn tồn thủ công. Nếu có nhiều sản phẩm phù hợp, chọn đúng mặt hàng trước khi áp dụng.</p>}
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full min-w-[680px] border-collapse text-sm">
+                    <thead className="bg-slate-100 text-left text-xs font-black uppercase"><tr><th className="p-2">Tên trong Excel</th><th className="p-2">Mặt hàng trên trang</th><th className="p-2">Tồn hệ thống</th><th className="p-2">Thực tế</th><th className="p-2">Chênh lệch</th></tr></thead>
+                    <tbody>{importedInventory.map((entry, index) => {
+                      const ambiguous = entry.matches.length !== 1 || !entry.matches[0] || normalizeProductName(entry.name) !== normalizeProductName(entry.matches[0]?.name);
+                      const selectedId = entry.selectedId ?? "";
+                      const target = entry.matches.find((item) => item.id === selectedId) ?? (!ambiguous ? entry.matches[0] : null);
+                      const actual = target ? rows.find((row) => row.id === target.id)?.total ?? 0 : null;
+                      const applied = target && Object.prototype.hasOwnProperty.call(appliedInventory ?? {}, target.id);
+                      const difference = target && applied ? Number(entry.quantity) - actual : null;
+                      return <tr key={`${entry.name}-${index}`} className={`border-t border-slate-200 ${ambiguous ? "bg-amber-100" : ""}`}>
+                        <td className="p-2 font-bold">{entry.name}</td>
+                        <td className="p-2">{ambiguous ? <select value={selectedId} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, selectedId: event.target.value } : row))} className="max-w-64 rounded border border-amber-500 bg-white px-2 py-1"><option value="">{entry.matches.length ? `Chọn mặt hàng (${entry.matches.length} phù hợp)` : "Không tìm thấy — đổi tên dòng trong ô dán"}</option>{entry.matches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : target?.name}</td>
+                        <td className="p-2"><input type="number" min="0" step="any" value={entry.quantity} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: event.target.value === "" ? "" : Number(event.target.value) } : row))} className={`w-24 rounded border px-2 py-1 ${ambiguous ? "border-amber-500 bg-white" : "border-slate-300"}`} /></td>
+                        <td className="p-2 font-bold">{target ? actual : "—"}</td>
+                        <td className={`p-2 font-black ${target && applied ? difference !== 0 ? "text-red-700" : "text-emerald-700" : "text-slate-400"}`}>{target && applied ? difference : "Chưa áp dụng"}</td>
+                      </tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-slate-500">Chênh lệch = Tồn hệ thống − Tồn thực tế. Những mặt hàng không có trong danh sách dán sẽ được xem là tồn hệ thống 0 sau khi áp dụng.</p>
+                <div className="hide-scrollbar max-h-48 overflow-y-auto rounded-lg border border-slate-200">
+                  <table className="w-full border-collapse text-sm"><thead className="sticky top-0 bg-slate-100 text-left text-xs font-black uppercase"><tr><th className="p-2">Mặt hàng chưa có trong file (tồn 0)</th><th className="p-2">Thực tế</th><th className="p-2">Chênh lệch</th></tr></thead><tbody>{rows.filter((row) => !Object.prototype.hasOwnProperty.call(systemByItem, row.id) && row.total !== 0).map((row) => <tr key={row.id} className="border-t border-slate-200"><td className="p-2 font-bold">{row.name}</td><td className="p-2">{row.total}</td><td className="p-2 font-black text-red-700">{-row.total}</td></tr>)}</tbody></table>
+                </div>
+                <div className="flex justify-end"><button type="button" onClick={applySystemInventory} disabled={importedInventory.some((entry) => { const target = entry.matches.find((item) => item.id === entry.selectedId) ?? (entry.matches.length === 1 && normalizeProductName(entry.name) === normalizeProductName(entry.matches[0]?.name) ? entry.matches[0] : null); return !target || !Number.isFinite(Number(entry.quantity)) || Number(entry.quantity) < 0; })} className="rounded-lg border-2 border-black bg-[#007A3D] px-5 py-2 font-black uppercase text-white shadow-[2px_2px_0_0_#000] disabled:cursor-not-allowed disabled:opacity-40">Áp dụng tồn hệ thống</button></div>
+              </>}
+            </div>
+          </section>
+        </div>
+      )}
       <div className="mto-print-sheet print-only bg-white text-black">
         <header className="mb-5">
           <div className="flex items-center justify-between border-b-[5px] border-[#ED1C24] pb-4">
@@ -183,15 +298,17 @@ export default function MTOs() {
             <p><span className="font-black uppercase text-[#ED1C24]">Quản lý:</span> <span className="font-bold">____________________</span></p>
           </div>
         </header>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 items-start gap-4">
           {printTables.map((tableRows, tableIndex) => (
-            <table key={tableIndex} className="mto-print-table w-full table-fixed border-collapse text-[9px]">
+            <table key={tableIndex} className="mto-print-table w-full min-w-0 table-fixed border-collapse text-[9px]">
               <thead>
                 <tr className="bg-[#00843D] text-white">
-                  <th className="w-9 border-b-2 border-l-2 border-r border-white/30 px-1 py-2 text-center font-black uppercase">STT</th>
-                  <th className="w-16 border-b-2 border-r border-white/30 px-1 py-2 text-center font-black uppercase">Mặt hàng</th>
-                  <th className="border-b-2 border-r border-white/30 px-2 py-2 text-left font-black uppercase">Tên mặt hàng</th>
-                  <th className="w-20 border-b-2 border-r-2 border-white/30 px-2 py-2 text-center font-black uppercase">Số lượng</th>
+                  <th className="w-[7%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">STT</th>
+                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">Mặt hàng</th>
+                  <th className="w-[35%] border-2 border-[#006B35] px-2 py-2 text-left font-black uppercase">Tên mặt hàng</th>
+                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">Tồn hệ thống</th>
+                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">Tồn thực tế</th>
+                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">Chênh lệch</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +319,9 @@ export default function MTOs() {
                       <td className="border-b border-l-2 border-r border-[#00843D]/30 p-1 text-center font-bold">{index + 1}</td>
                       <td className="border-b border-r border-[#00843D]/30 p-1 text-center"><img src={row.image} alt="" className="mx-auto h-8 w-12 object-contain" /></td>
                       <td className="border-b border-r border-[#00843D]/30 px-2 py-1 font-black uppercase">{row.name}</td>
-                      <td className="border-b border-r-2 border-[#00843D]/30 px-2 py-1 text-center font-black text-[#ED1C24]">{row.total}</td>
+                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">{row.systemTotal ?? "—"}</td>
+                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-black text-[#ED1C24]">{row.total}</td>
+                      <td className="border-b border-r-2 border-[#00843D]/30 px-1 py-1 text-center font-black">{row.difference ?? "—"}</td>
                     </tr>
                   );
                 })}
