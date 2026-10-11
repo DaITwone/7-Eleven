@@ -135,17 +135,12 @@ export default function MTOs() {
           <div className="mto-actions flex flex-col gap-4 border-b-2 border-dashed border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="inline-block rounded-sm bg-[#007A3D] px-3 py-2 text-xl font-black uppercase tracking-wide text-white">Kiểm kê MTOs</h1>
-              <p className="mt-2 text-sm font-medium text-stone-600">Nhập từng lần kiểm kê, tổng số lượng được lưu ngay trên thiết bị này.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => downloadExcel(rows)} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-white px-3 py-2 text-sm font-black uppercase hover:bg-orange-50"><FileSpreadsheet size={18} /> Excel</button>
               <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-md border-2 border-black bg-[#007A3D] px-3 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] hover:bg-[#005c3a]"><Printer size={18} /> PDF</button>
               <button type="button" onClick={() => { if (window.confirm("Xóa toàn bộ số lượng đã nhập?")) setRecords({}); }} className="inline-flex items-center gap-2 rounded-md border-2 border-black px-3 py-2 text-sm font-black uppercase hover:bg-stone-100"><RotateCcw size={17} /> Làm mới</button>
             </div>
-          </div>
-          <div className="mt-5 flex items-center justify-between rounded-md border-2 border-[#FF8200] bg-orange-50 px-4 py-3">
-            <span className="text-sm font-black uppercase text-black">Tổng số lượng đã kiểm kê</span>
-            <strong className="text-2xl font-black text-[#EE3124]">{grandTotal}</strong>
           </div>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {mtoItems.map((item) => <MTOCard key={item.id} item={item} entries={records[item.id] ?? []} onAdd={(id, quantity) => setRecords((current) => ({ ...current, [id]: [...(current[id] ?? []), quantity] }))} onUpdate={(index, quantity) => setRecords((current) => ({ ...current, [item.id]: (current[item.id] ?? []).map((value, entryIndex) => entryIndex === index ? quantity : value) }))} onRemove={(index) => setRecords((current) => ({ ...current, [item.id]: (current[item.id] ?? []).filter((_, entryIndex) => entryIndex !== index) }))} />)}
@@ -161,7 +156,6 @@ export default function MTOs() {
               <div>
                 <p className="mb-1 text-[10px] font-black uppercase tracking-[0.24em] text-[#00843D]">Cửa hàng tiện lợi 24/7</p>
                 <h1 className="text-[26px] font-black uppercase leading-none text-[#F58220]">Bảng kiểm kê MTOs</h1>
-                <p className="mt-1 text-[13px] font-bold text-[#ED1C24]">Tổng số lượng: {grandTotal}</p>
               </div>
             </div>
             <div className="text-right">
