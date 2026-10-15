@@ -22,7 +22,6 @@ const names = [
   "[M] Bò Lá Lốt Mới",
   "[M] Chả Giò 7-Eleven",
   "[M] Lạp Xưởng Đài Loan",
-  "[M] Bottle Shot Matcha",
   "[M] Heo Xiên Nướng Mỡ Hành (Mới)",
   "[M] Sleeve Ly 7-Eleven",
   "[M] Gà Xiên Nướng Lá Chanh (Mới)",
