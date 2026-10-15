@@ -26,7 +26,7 @@ const names = [
   "[M] Sleeve Ly 7-Eleven",
   "[M] Gà Xiên Nướng Lá Chanh (Mới)",
   "[NPV] Nắp Ly Cà Phê Lạnh",
-  "[M] Bánh Xếp Hàn Quốc",
+  "[M] Bánh Xếp Hàn Quốc",  
   "[M] Mì Gói",
   "[M] Trứng Gà Luộc",
   "[M] Xíu Mại Hấp",
