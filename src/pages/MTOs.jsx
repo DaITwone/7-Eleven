@@ -614,7 +614,7 @@ export default function MTOs() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="mto-inventory-title"
-            className="hide-scrollbar flex h-[100dvh] max-h-[100dvh] w-full max-w-5xl flex-col overflow-y-auto overscroll-contain bg-white sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl sm:border-2 sm:shadow-[5px_5px_0_0_#000]"
+            className="hide-scrollbar flex h-[100dvh] max-h-[100dvh] w-full max-w-5xl flex-col overflow-y-auto overscroll-contain border-2 border-black bg-white shadow-[5px_5px_0_0_#000] sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl"
           >
             <header className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b-2 border-black bg-[#007A3D] p-3 text-white sm:p-4">
               <div className="min-w-0">
@@ -639,22 +639,24 @@ export default function MTOs() {
               </button>
             </header>
             <div className="min-w-0 flex-1 space-y-4 p-3 sm:p-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="overflow-hidden bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#008061] bg-white px-3 py-3 sm:px-4">
                   <div>
-                    <h3 className="text-sm font-black uppercase text-slate-900">Dữ liệu từ Excel</h3>
-                    <p className="mt-0.5 text-xs text-slate-500">Mỗi cột một ô, ghép dữ liệu theo thứ tự dòng.</p>
+                    <h3 className="text-sm font-black uppercase tracking-wide text-black">Dữ liệu hệ thống</h3>
                   </div>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200">3 cột</span>
+                  <span className="bg-[#007A3D] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Excel · 3 cột</span>
                 </div>
-                <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-3 bg-[#F4FAF6] p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-3">
                   {[
-                    ["names", "TÊN SẢN PHẨM", "Dán cột tên sản phẩm"],
-                    ["quantities", "SỐ LƯỢNG", "Dán cột số lượng"],
-                    ["prices", "PRICE", "Dán cột Price (không bắt buộc)"],
-                  ].map(([key, label, placeholder]) => (
-                    <label key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-xs font-extrabold text-slate-800 shadow-sm focus-within:border-[#00843D] focus-within:ring-2 focus-within:ring-[#00843D]/15">
-                      <span className="mb-2 block">{label}</span>
+                    ["names", "TÊN SẢN PHẨM", "Dán cột tên sản phẩm", "01"],
+                    ["quantities", "SỐ LƯỢNG", "Dán cột số lượng", "02"],
+                    ["prices", "PRICE", "Dán cột Price (không bắt buộc)", "03"],
+                  ].map(([key, label, placeholder, number]) => (
+                    <label key={key} className="min-w-0 border-2 border-[#008061] bg-white p-3 text-xs font-extrabold text-slate-900 shadow-[2px_2px_0_0_#008061] transition focus-within:border-black focus-within:shadow-[2px_2px_0_0_#000]">
+                      <span className="mb-2 flex items-center justify-between gap-2">
+                        {label}
+                        <span className="font-mono text-[10px] font-black text-[#008061]/60">{number}</span>
+                      </span>
                       <textarea
                         value={inventoryColumns[key]}
                         onChange={(event) =>
@@ -665,58 +667,49 @@ export default function MTOs() {
                         }
                         rows={4}
                         placeholder={placeholder}
-                        className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50/70 p-3 font-mono text-sm font-normal leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-transparent focus:bg-white sm:min-h-32"
+                        className="min-h-28 w-full resize-y border border-slate-300 bg-white p-3 font-mono text-sm font-normal leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#007A3D] sm:min-h-32"
                       />
                     </label>
                   ))}
                 </div>
-                <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs leading-5 text-slate-500">Tên sản phẩm và số lượng cần có để đối chiếu.</p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSystemInventory(
-                      parseSystemInventory(
-                        inventoryColumns.names,
-                        inventoryColumns.quantities,
-                        inventoryColumns.prices,
-                      ),
-                    )
-                  }
-                  className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-black bg-[#FF8200] px-4 py-2 text-sm font-black uppercase shadow-[2px_2px_0_0_#000] hover:bg-orange-400 sm:w-auto"
-                >
-                  <ClipboardPaste size={18} /> Đối chiếu
-                </button>
-                </div>
-              </div>
-              {systemInventory && (
-                <>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <p className="font-bold">
-                      Đã đọc {importedInventory.length} dòng. Tồn hệ thống có
-                      thể nhập lại tại đây.
-                    </p>
+                <div className="flex flex-col gap-3 border-t-2 border-[#008061] bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-4">
+                  {systemInventory && (
                     <button
                       type="button"
                       onClick={() => {
                         setSystemInventory(null);
                         setAppliedInventory(null);
-                        setInventoryColumns({
-                          names: "",
-                          quantities: "",
-                          prices: "",
-                        });
+                        setInventoryColumns({ names: "", quantities: "", prices: "" });
                         localStorage.removeItem(SYSTEM_INVENTORY_KEY);
                       }}
-                      className="rounded-md border border-slate-300 px-3 py-1.5 font-bold hover:bg-slate-50"
+                      className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-md border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase text-slate-700 shadow-[3px_3px_0_0_#000] transition hover:bg-red-50 hover:text-[#EE3124] sm:w-auto"
                     >
-                      Xóa dữ liệu đã dán
+                      xóa
                     </button>
-                  </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSystemInventory(
+                        parseSystemInventory(
+                          inventoryColumns.names,
+                          inventoryColumns.quantities,
+                          inventoryColumns.prices,
+                        ),
+                      )
+                    }
+                    className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border-2 border-black bg-[#FF8200] px-5 py-2 text-sm font-black uppercase tracking-wide text-black shadow-[3px_3px_0_0_#000] transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0_0_#000] sm:w-auto"
+                  >
+                    <ClipboardPaste size={18} /> Đối chiếu
+                  </button>
+                </div>
+              </div>
+              {systemInventory && (
+                <>
                   {importedInventory.some(
                     (entry) => entry.matches.length !== 1,
                   ) && (
-                    <p className="rounded-md border border-amber-400 bg-amber-100 p-3 text-sm font-bold text-amber-950">
+                    <p className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm font-medium text-amber-800">
                       Dòng màu vàng cần nhập/chọn tồn thủ công. Nếu có nhiều sản
                       phẩm phù hợp, chọn đúng mặt hàng trước khi áp dụng.
                     </p>
