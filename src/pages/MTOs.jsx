@@ -576,7 +576,7 @@ export default function MTOs() {
       </main>
       {showInventoryModal && (
         <div
-          className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-stretch justify-center bg-slate-950/65 p-0 backdrop-blur-sm sm:items-center sm:p-3"
           role="presentation"
           onMouseDown={(event) =>
             event.target === event.currentTarget && setShowInventoryModal(false)
@@ -586,17 +586,17 @@ export default function MTOs() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="mto-inventory-title"
-            className="hide-scrollbar h-[100dvh] max-h-[100dvh] w-full max-w-5xl overflow-y-auto rounded-none border-0 bg-white shadow-[5px_5px_0_0_#000] sm:h-auto sm:max-h-[92vh] sm:rounded-2xl sm:border-2"
+            className="hide-scrollbar flex h-[100dvh] max-h-[100dvh] w-full max-w-5xl flex-col overflow-y-auto overscroll-contain bg-white sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl sm:border-2 sm:shadow-[5px_5px_0_0_#000]"
           >
-            <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b-2 border-black bg-[#007A3D] p-4 text-white">
-              <div>
+            <header className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b-2 border-black bg-[#007A3D] p-3 text-white sm:p-4">
+              <div className="min-w-0">
                 <h2
                   id="mto-inventory-title"
-                  className="text-lg font-black uppercase"
+                  className="text-base font-black uppercase sm:text-lg"
                 >
                   Đối chiếu tồn hệ thống
                 </h2>
-                <p className="text-xs font-semibold text-white/80">
+                <p className="mt-1 max-w-3xl text-[11px] font-semibold leading-4 text-white/85 sm:text-xs sm:leading-5">
                   Dán riêng từng cột từ Excel; dữ liệu ghép theo thứ tự dòng.
                   Price có thể để trống, còn Số lượng cần có trước khi áp dụng.
                 </p>
@@ -610,16 +610,23 @@ export default function MTOs() {
                 <X size={22} />
               </button>
             </header>
-            <div className="space-y-4 p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                <div className="grid gap-2 sm:grid-cols-3">
+            <div className="min-w-0 flex-1 space-y-4 p-3 sm:p-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-slate-900">Dữ liệu từ Excel</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">Mỗi cột một ô, ghép dữ liệu theo thứ tự dòng.</p>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200">3 cột</span>
+                </div>
+                <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {[
                     ["names", "TÊN SẢN PHẨM", "Dán cột tên sản phẩm"],
                     ["quantities", "SỐ LƯỢNG", "Dán cột số lượng"],
                     ["prices", "PRICE", "Dán cột Price (không bắt buộc)"],
                   ].map(([key, label, placeholder]) => (
-                    <label key={key} className="text-xs font-bold">
-                      {label}
+                    <label key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-xs font-extrabold text-slate-800 shadow-sm focus-within:border-[#00843D] focus-within:ring-2 focus-within:ring-[#00843D]/15">
+                      <span className="mb-2 block">{label}</span>
                       <textarea
                         value={inventoryColumns[key]}
                         onChange={(event) =>
@@ -628,13 +635,15 @@ export default function MTOs() {
                             [key]: event.target.value,
                           }))
                         }
-                        rows={5}
+                        rows={4}
                         placeholder={placeholder}
-                        className="mt-1 min-h-28 w-full rounded-lg border-2 border-slate-300 p-3 font-mono text-sm font-normal outline-none focus:border-[#007A3D]"
+                        className="min-h-28 w-full resize-y rounded-lg border border-slate-200 bg-slate-50/70 p-3 font-mono text-sm font-normal leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-transparent focus:bg-white sm:min-h-32"
                       />
                     </label>
                   ))}
                 </div>
+                <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs leading-5 text-slate-500">Tên sản phẩm và số lượng cần có để đối chiếu.</p>
                 <button
                   type="button"
                   onClick={() =>
@@ -646,10 +655,11 @@ export default function MTOs() {
                       ),
                     )
                   }
-                  className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-lg border-2 border-black bg-[#FF8200] px-4 py-2 text-sm font-black uppercase hover:bg-orange-400"
+                  className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-black bg-[#FF8200] px-4 py-2 text-sm font-black uppercase shadow-[2px_2px_0_0_#000] hover:bg-orange-400 sm:w-auto"
                 >
                   <ClipboardPaste size={18} /> Đối chiếu
                 </button>
+                </div>
               </div>
               {systemInventory && (
                 <>
@@ -683,7 +693,7 @@ export default function MTOs() {
                       phẩm phù hợp, chọn đúng mặt hàng trước khi áp dụng.
                     </p>
                   )}
-                  <div className="hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
+                  <div className="hidden max-w-full overflow-x-auto rounded-lg border border-slate-200 md:block">
                     <table className="w-full min-w-[680px] border-collapse text-sm">
                       <thead className="bg-slate-100 text-left text-xs font-black uppercase">
                         <tr>
@@ -832,7 +842,7 @@ export default function MTOs() {
                       </tbody>
                     </table>
                   </div>
-                  <div className="space-y-2 sm:hidden">
+                  <div className="space-y-2 md:hidden">
                     {importedInventory.map((entry, index) => {
                       const selectedOther = entry.selectedId === "other";
                       const ambiguous =
@@ -995,7 +1005,7 @@ export default function MTOs() {
                   </p>
                   {missingSystemInventoryRows.length > 0 && (
                     <>
-                  <div className="hide-scrollbar hidden max-h-48 overflow-y-auto rounded-lg border border-slate-200 sm:block">
+                  <div className="hide-scrollbar hidden max-h-48 max-w-full overflow-auto rounded-lg border border-slate-200 md:block">
                     <table className="w-full border-collapse text-sm">
                       <thead className="sticky top-0 bg-slate-100 text-left text-xs font-black uppercase">
                         <tr>
@@ -1022,7 +1032,7 @@ export default function MTOs() {
                       </tbody>
                     </table>
                   </div>
-                  <div className="space-y-2 sm:hidden">
+                  <div className="space-y-2 md:hidden">
                     {missingSystemInventoryRows.map((row) => (
                         <article
                           key={`missing-mobile-${row.id}`}
@@ -1046,7 +1056,7 @@ export default function MTOs() {
                   </div>
                     </>
                   )}
-                  <div className="flex justify-end">
+                  <div className="flex justify-stretch sm:justify-end">
                     <button
                       type="button"
                       onClick={applySystemInventory}
@@ -1068,7 +1078,7 @@ export default function MTOs() {
                           Number(entry.quantity) < 0
                         );
                       })}
-                      className="rounded-lg border-2 border-black bg-[#007A3D] px-5 py-2 font-black uppercase text-white shadow-[2px_2px_0_0_#000] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="w-full rounded-lg border-2 border-black bg-[#007A3D] px-5 py-3 font-black uppercase text-white shadow-[2px_2px_0_0_#000] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                     >
                       Áp dụng tồn hệ thống
                     </button>
