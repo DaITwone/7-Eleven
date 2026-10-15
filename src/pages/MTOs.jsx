@@ -95,10 +95,10 @@ function downloadExcel(rows) {
   const tableRows = rows
     .map(
       (row) =>
-        `<tr><td>${row.name}</td><td>${row.systemTotal ?? ""}</td><td>${row.total}</td><td>${row.systemTotal == null ? "" : row.systemTotal - row.total}</td></tr>`,
+        `<tr><td>${row.name}</td><td>${row.systemTotal ?? ""}</td><td>${row.price ?? ""}</td><td>${row.amount ?? ""}</td><td>${row.total}</td><td>${row.systemTotal == null ? "" : row.systemTotal - row.total}</td></tr>`,
     )
     .join("");
-  const workbook = `\ufeff<html><head><meta charset="utf-8"></head><body><table><thead><tr><th>Mặt hàng</th><th>Tồn hệ thống</th><th>Tồn thực tế</th><th>Chênh lệch</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+  const workbook = `\ufeff<html><head><meta charset="utf-8"></head><body><table><thead><tr><th>Mặt hàng</th><th>Tồn hệ thống</th><th>Price</th><th>Amount</th><th>Tồn thực tế</th><th>Chênh lệch</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
   const blob = new Blob([workbook], {
     type: "application/vnd.ms-excel;charset=utf-8",
   });
@@ -349,6 +349,13 @@ export default function MTOs() {
     return () => window.clearTimeout(timer);
   }, [records, appliedInventory, databaseReady]);
 
+  const importedInventory = useMemo(() => {
+    if (!Array.isArray(systemInventory)) return [];
+    return systemInventory.map((entry) => ({
+      ...entry,
+      matches: findProductMatches(entry.name),
+    }));
+  }, [systemInventory]);
   const rows = useMemo(
     () =>
       mtoItems.map((item) => {
@@ -362,6 +369,17 @@ export default function MTOs() {
           : appliedInventory !== null
             ? 0
             : null;
+        const imported = importedInventory.find((entry) => {
+          const target =
+            entry.matches.find((match) => match.id === entry.selectedId) ??
+            (entry.matches.length === 1 &&
+            normalizeProductName(entry.name) ===
+              normalizeProductName(entry.matches[0].name)
+              ? entry.matches[0]
+              : null);
+          return target?.id === item.id;
+        });
+        const price = Number(imported?.price);
         return {
           id: item.id,
           image: item.image,
@@ -369,19 +387,19 @@ export default function MTOs() {
           entries: entries.length,
           total,
           systemTotal,
+          price: Number.isFinite(price) && imported?.price !== "" ? price : null,
+          amount:
+            systemTotal !== null &&
+            Number.isFinite(price) &&
+            imported?.price !== ""
+              ? systemTotal * price
+              : null,
           difference: systemTotal === null ? null : systemTotal - total,
         };
       }),
-    [records, appliedInventory],
+    [records, appliedInventory, importedInventory],
   );
   const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
-  const importedInventory = useMemo(() => {
-    if (!Array.isArray(systemInventory)) return [];
-    return systemInventory.map((entry) => ({
-      ...entry,
-      matches: findProductMatches(entry.name),
-    }));
-  }, [systemInventory]);
   const systemByItem = useMemo(() => {
     const totals = {};
     (appliedInventory
@@ -421,10 +439,6 @@ export default function MTOs() {
     localStorage.setItem(SYSTEM_INVENTORY_KEY, JSON.stringify(next));
     setShowInventoryModal(false);
   };
-  const printTables = [
-    rows.slice(0, Math.ceil(rows.length / 2)),
-    rows.slice(Math.ceil(rows.length / 2)),
-  ];
   const printMTOs = () => {
     const previousTitle = document.title;
     const today = new Date();
@@ -446,7 +460,7 @@ export default function MTOs() {
 
   return (
     <>
-      <style>{`.mto-print-sheet { display: none; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
+      <style>{`.mto-print-sheet { display: none; } @page { size: A4 landscape; margin: 10mm; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
       <main className="no-print min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
         <section className="mx-auto max-w-[1500px] overflow-hidden rounded-xl border-2 border-black bg-white">
           <div
@@ -630,6 +644,8 @@ export default function MTOs() {
                           <th className="p-2">Tên trong Excel</th>
                           <th className="p-2">Mặt hàng trên trang</th>
                           <th className="p-2">Tồn hệ thống</th>
+                          <th className="p-2">Price</th>
+                          <th className="p-2">Amount</th>
                           <th className="p-2">Thực tế</th>
                           <th className="p-2">Chênh lệch</th>
                         </tr>
@@ -654,6 +670,8 @@ export default function MTOs() {
                             target && Number.isFinite(Number(entry.quantity))
                               ? Number(entry.quantity) - actual
                               : null;
+                          const price = Number(entry.price) || 0;
+                          const amount = (Number(entry.quantity) || 0) * price;
                           return (
                             <tr
                               key={`${entry.name}-${index}`}
@@ -717,6 +735,35 @@ export default function MTOs() {
                                   className={`w-24 rounded border px-2 py-1 ${ambiguous ? "border-amber-500 bg-white" : "border-slate-300"}`}
                                 />
                               </td>
+                              <td className="p-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={entry.price ?? ""}
+                                  onChange={(event) =>
+                                    setSystemInventory((current) =>
+                                      current.map((row, rowIndex) =>
+                                        rowIndex === index
+                                          ? {
+                                              ...row,
+                                              price:
+                                                event.target.value === ""
+                                                  ? ""
+                                                  : Number(event.target.value),
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  placeholder="0"
+                                  aria-label={`Price ${entry.name}`}
+                                  className="w-28 rounded border border-slate-300 px-2 py-1"
+                                />
+                              </td>
+                              <td className="p-2 font-bold">
+                                {amount.toLocaleString("vi-VN")}
+                              </td>
                               <td className="p-2 font-bold">
                                 {target ? actual : "—"}
                               </td>
@@ -739,6 +786,8 @@ export default function MTOs() {
                       const target = entry.matches.find((item) => item.id === entry.selectedId) ?? (!ambiguous ? entry.matches[0] : null);
                       const actual = target ? rows.find((row) => row.id === target.id)?.total ?? 0 : null;
                       const difference = target && Number.isFinite(Number(entry.quantity)) ? Number(entry.quantity) - actual : null;
+                      const price = Number(entry.price) || 0;
+                      const amount = (Number(entry.quantity) || 0) * price;
                       return (
                         <article key={`mobile-${entry.name}-${index}`} className={`rounded-lg border p-3 ${difference !== null && difference < 0 ? "border-amber-500 bg-amber-200" : ambiguous ? "border-amber-400 bg-amber-100" : "border-slate-200 bg-white"}`}>
                           <p className="font-black">{entry.name}</p>
@@ -751,8 +800,10 @@ export default function MTOs() {
                               </select>
                             ) : <p className="text-sm font-bold">{target?.name}</p>}
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                             <label className="min-w-0"><span className="mb-1 block font-bold text-slate-500">Tồn hệ thống</span><input type="number" min="0" step="any" value={entry.quantity} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: event.target.value === "" ? "" : Number(event.target.value) } : row))} className="w-full rounded border border-slate-300 px-2 py-2 text-sm" /></label>
+                            <label className="min-w-0"><span className="mb-1 block font-bold text-slate-500">Price</span><input type="number" min="0" step="any" value={entry.price ?? ""} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value === "" ? "" : Number(event.target.value) } : row))} className="w-full rounded border border-slate-300 px-2 py-2 text-sm" /></label>
+                            <div><span className="mb-1 block font-bold text-slate-500">Amount</span><p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">{amount.toLocaleString("vi-VN")}</p></div>
                             <div><span className="mb-1 block font-bold text-slate-500">Thực tế</span><p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">{target ? actual : "—"}</p></div>
                             <div><span className="mb-1 block font-bold text-slate-500">Chênh lệch</span><p className={`rounded px-2 py-2 text-sm font-black ${difference !== null && difference < 0 ? "bg-amber-300 text-amber-950" : difference === 0 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{difference ?? "—"}</p></div>
                           </div>
@@ -887,27 +938,29 @@ export default function MTOs() {
             </p>
           </div>
         </header>
-        <div className="grid grid-cols-2 items-start gap-4">
-          {printTables.map((tableRows, tableIndex) => (
-            <table
-              key={tableIndex}
-              className="mto-print-table w-full min-w-0 table-fixed border-collapse text-[9px]"
-            >
+        <div>
+            <table className="mto-print-table w-full min-w-0 table-fixed border-collapse text-[9px]">
               <thead>
                 <tr className="bg-[#00843D] text-white">
-                  <th className="w-[7%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  <th className="w-[5%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
                     STT
                   </th>
-                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  <th className="w-[8%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
                     Mặt hàng
                   </th>
-                  <th className="w-[35%] border-2 border-[#006B35] px-2 py-2 text-left font-black uppercase">
+                  <th className="w-[29%] border-2 border-[#006B35] px-2 py-2 text-left font-black uppercase">
                     Tên mặt hàng
                   </th>
-                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
                     Tồn hệ thống
                   </th>
-                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                    Price
+                  </th>
+                  <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                    Amount
+                  </th>
+                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
                     Tồn thực tế
                   </th>
                   <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
@@ -916,16 +969,14 @@ export default function MTOs() {
                 </tr>
               </thead>
               <tbody>
-                {tableRows.map((row, rowIndex) => {
-                  const index =
-                    tableIndex * Math.ceil(rows.length / 2) + rowIndex;
+                {rows.map((row, index) => {
                   return (
                     <tr
                       key={row.id}
                       className={
                         row.difference !== null && row.difference < 0
                           ? "bg-amber-200"
-                          : rowIndex % 2 === 0
+                          : index % 2 === 0
                             ? "bg-white"
                             : "bg-[#F8FCF9]"
                       }
@@ -946,6 +997,12 @@ export default function MTOs() {
                       <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
                         {row.systemTotal ?? "—"}
                       </td>
+                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
+                        {row.price?.toLocaleString("vi-VN") ?? "—"}
+                      </td>
+                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
+                        {row.amount?.toLocaleString("vi-VN") ?? "—"}
+                      </td>
                       <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-black text-[#ED1C24]">
                         {row.total}
                       </td>
@@ -957,7 +1014,6 @@ export default function MTOs() {
                 })}
               </tbody>
             </table>
-          ))}
         </div>
         <footer className="mto-print-footer mt-5">
           <div className="flex items-start justify-end">
