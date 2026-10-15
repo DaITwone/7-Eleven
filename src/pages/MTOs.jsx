@@ -128,7 +128,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
   const addQuantity = () => {
     const value = Number(quantity);
     if (!Number.isFinite(value) || value <= 0) return false;
-    onAdd(item.id, value);
+    onAdd(item.id, Math.round(value));
     setQuantity("");
     return true;
   };
@@ -192,14 +192,14 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                     </span>
                     <input
                       type="number"
-                      min="0.01"
-                      step="any"
+                      min="1"
+                      step="1"
                       defaultValue={entry}
                       aria-label={`Lần nhập ${index + 1} của ${item.name}`}
                       onBlur={(event) => {
                         const value = Number(event.target.value);
                         if (Number.isFinite(value) && value > 0)
-                          onUpdate(index, value);
+                          onUpdate(index, Math.round(value));
                         else event.target.value = entry;
                       }}
                       className="h-8 min-w-0 rounded border border-slate-300 px-2 text-xs font-bold outline-none focus:border-[#007A3D]"
@@ -261,8 +261,8 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                   <input
                     autoFocus
                     type="number"
-                    min="0.01"
-                    step="any"
+                    min="1"
+                    step="1"
                     value={quantity}
                     onChange={(event) => setQuantity(event.target.value)}
                     onKeyDown={(event) => {
@@ -295,11 +295,59 @@ export default function MTOs() {
   const [inventoryText, setInventoryText] = useState("");
   const [systemInventory, setSystemInventory] = useState(null);
   const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
+  const [databaseReady, setDatabaseReady] = useState(false);
+  const [databaseError, setDatabaseError] = useState("");
 
-  useEffect(
-    () => localStorage.setItem(STORAGE_KEY, JSON.stringify(records)),
-    [records],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/mto/entries")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Không tải được dữ liệu kiểm kê.");
+        return response.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const nextRecords = {};
+        for (const entry of data.entries ?? []) {
+          if (!nextRecords[entry.productId]) nextRecords[entry.productId] = [];
+          nextRecords[entry.productId].push(entry.quantity);
+        }
+        setRecords(nextRecords);
+        setAppliedInventory(
+          data.systemInventory && Object.keys(data.systemInventory).length
+            ? data.systemInventory
+            : null,
+        );
+        setDatabaseReady(true);
+      })
+      .catch((error) => {
+        if (!cancelled) setDatabaseError(error.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!databaseReady) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    const entries = Object.entries(records).flatMap(([productId, quantities]) =>
+      quantities.map((quantity) => ({ productId, quantity })),
+    );
+    const timer = window.setTimeout(() => {
+      fetch("/api/mto/entries", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries, systemInventory: appliedInventory ?? {} }),
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Không lưu được dữ liệu lên database.");
+          setDatabaseError("");
+        })
+        .catch((error) => setDatabaseError(error.message));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [records, appliedInventory, databaseReady]);
 
   const rows = useMemo(
     () =>
@@ -409,6 +457,11 @@ export default function MTOs() {
             }}
           />
           <div className="p-5 md:p-7">
+            {databaseError && (
+              <p role="alert" className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
+                {databaseError} Dữ liệu đang lưu trên thiết bị này; hãy kiểm tra API và cấu hình database.
+              </p>
+            )}
             <div className="mto-actions flex flex-col gap-4 border-b-2 border-dashed border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h1 className="inline-block rounded-sm bg-[#007A3D] px-3 py-2 text-xl font-black uppercase tracking-wide text-white">
@@ -644,7 +697,7 @@ export default function MTOs() {
                                 <input
                                   type="number"
                                   min="0"
-                                  step="any"
+                                  step="1"
                                   value={entry.quantity}
                                   onChange={(event) =>
                                     setSystemInventory((current) =>
