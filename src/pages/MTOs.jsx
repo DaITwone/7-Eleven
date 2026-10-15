@@ -103,6 +103,14 @@ function readSystemInventory() {
   }
 }
 
+function formatEntryTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())} ${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${String(date.getFullYear()).slice(-2)}`;
+}
+
 function downloadExcel(rows) {
   const tableRows = rows
     .map(
@@ -127,7 +135,10 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [showEntries, setShowEntries] = useState(false);
   const [showInputModal, setShowInputModal] = useState(false);
-  const total = entries.reduce((sum, value) => sum + value, 0);
+  const total = entries.reduce(
+    (sum, entry) => sum + (typeof entry === "number" ? entry : entry.quantity),
+    0,
+  );
 
   const addQuantity = () => {
     const value = Number(quantity);
@@ -139,11 +150,11 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
   return (
     <>
-      <article className="overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061]">
+      <article className="overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-transform duration-150 hover:-translate-y-0.5">
         <button
           type="button"
           onClick={() => setShowInputModal(true)}
-          className="relative block aspect-[4/3] w-full bg-white transition hover:bg-emerald-50"
+          className="relative block aspect-[4/3] w-full bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200]"
           aria-label={`Nhập số lượng cho ${item.name}`}
         >
           {!imageFailed ? (
@@ -152,20 +163,20 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
               alt={item.name}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="h-full w-full object-contain p-3"
+              className="h-full w-full object-contain p-4"
             />
           ) : (
-            <div className="grid h-full place-items-center gap-2 p-4 text-center text-stone-400">
+            <div className="grid h-full place-items-center gap-2 bg-stone-50 p-4 text-center text-stone-400">
               <ImageOff size={28} />
-              <span className="text-[10px] font-bold uppercase">
-                /images/mtos/{item.id}.png
+              <span className="text-[10px] font-bold uppercase tracking-wide">
+                Chưa có hình ảnh
               </span>
             </div>
           )}
         </button>
-        <div className="border-t-2 border-[#008061] p-3">
+        <div className="border-t-2 border-[#008061] bg-white p-3">
           <div className="flex min-h-10 items-start justify-between gap-2">
-            <h2 className="text-sm font-black uppercase leading-5 text-black">
+            <h2 className="line-clamp-2 text-sm font-black uppercase leading-5 text-black">
               {item.name}
             </h2>
             <button
@@ -175,44 +186,52 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
               }
               aria-label={`Tổng số lượng ${item.name}: ${total}. Nhấn để chỉnh sửa.`}
               aria-expanded={showEntries}
-              className={`shrink-0 rounded-md bg-[#EE3124] px-2 py-1 text-lg font-black leading-none text-white transition ${entries.length > 0 ? "cursor-pointer hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-[#EE3124]" : "cursor-default"}`}
+              className={`shrink-0 rounded-md border-2 border-black bg-[#EE3124] px-2.5 py-1.5 text-lg font-black leading-none text-white shadow-[2px_2px_0_0_#000] transition`}
             >
               {total}
             </button>
           </div>
           {showEntries && (
-            <div className="mt-3 border-t-2 border-dashed border-slate-200 pt-2">
+            <div className="mt-3 border-t-2 border-dashed border-slate-300 pt-2">
               <p className="mb-2 text-[10px] font-black uppercase text-stone-500">
-                Lịch sử nhập
+                Lịch sử nhập ({entries.length})
               </p>
-              <div className="space-y-1.5">
+              <div className="max-h-36 divide-y divide-slate-200 overflow-y-auto border-y border-slate-200">
                 {entries.map((entry, index) => (
                   <div
-                    key={`${index}-${entry}`}
-                    className="grid grid-cols-[auto_1fr_auto] items-center gap-2"
+                    key={`${index}-${typeof entry === "number" ? entry : entry.quantity}`}
+                    className="grid grid-cols-[2.25rem_minmax(2.5rem,1fr)_auto_auto] items-center gap-2 py-1.5"
                   >
-                    <span className="text-[10px] font-bold text-stone-500">
-                      #{index + 1}
+                    <span className="text-[10px] font-black tabular-nums text-stone-400">
+                      {String(index + 1).padStart(2, "0")}
                     </span>
+                    <label className="contents">
                     <input
                       type="number"
                       min="1"
                       step="1"
-                      defaultValue={entry}
+                      defaultValue={typeof entry === "number" ? entry : entry.quantity}
                       aria-label={`Lần nhập ${index + 1} của ${item.name}`}
                       onBlur={(event) => {
                         const value = Number(event.target.value);
                         if (Number.isFinite(value) && value > 0)
                           onUpdate(index, Math.round(value));
-                        else event.target.value = entry;
+                        else event.target.value = typeof entry === "number" ? entry : entry.quantity;
                       }}
-                      className="h-8 min-w-0 rounded border border-slate-300 px-2 text-xs font-bold outline-none focus:border-[#007A3D]"
+                      className="h-8 w-20 rounded border-2 border-black bg-white px-2 text-center text-sm font-black outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30"
                     />
+                    </label>
+                    <time
+                      className="whitespace-nowrap text-[9px] font-bold tabular-nums text-stone-500"
+                      dateTime={typeof entry === "number" ? undefined : entry.createdAt}
+                    >
+                      {formatEntryTime(typeof entry === "number" ? null : entry.createdAt)}
+                    </time>
                     <button
                       type="button"
                       onClick={() => onRemove(index)}
                       aria-label={`Xóa lần nhập ${index + 1} của ${item.name}`}
-                      className="grid h-8 w-8 place-items-center rounded border border-red-200 text-[#EE3124] hover:bg-red-50"
+                      className="grid h-7 w-7 place-items-center rounded border border-transparent text-stone-400 transition hover:border-[#EE3124] hover:bg-red-50 hover:text-[#EE3124] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE3124]"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -340,7 +359,10 @@ export default function MTOs() {
     if (!databaseReady) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     const entries = Object.entries(records).flatMap(([productId, quantities]) =>
-      quantities.map((quantity) => ({ productId, quantity })),
+      quantities.map((entry) => ({
+        productId,
+        quantity: typeof entry === "number" ? entry : entry.quantity,
+      })),
     );
     const timer = window.setTimeout(() => {
       fetch("/api/mto/entries", {
@@ -547,7 +569,10 @@ export default function MTOs() {
                   onAdd={(id, quantity) =>
                     setRecords((current) => ({
                       ...current,
-                      [id]: [...(current[id] ?? []), quantity],
+                      [id]: [
+                        ...(current[id] ?? []),
+                        { quantity, createdAt: new Date().toISOString() },
+                      ],
                     }))
                   }
                   onUpdate={(index, quantity) =>
@@ -555,7 +580,11 @@ export default function MTOs() {
                       ...current,
                       [item.id]: (current[item.id] ?? []).map(
                         (value, entryIndex) =>
-                          entryIndex === index ? quantity : value,
+                          entryIndex === index
+                            ? typeof value === "number"
+                              ? quantity
+                              : { ...value, quantity }
+                            : value,
                       ),
                     }))
                   }
