@@ -150,11 +150,11 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
   return (
     <>
-      <article className="overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-transform duration-150 hover:-translate-y-0.5">
+      <article className="flex min-w-0 flex-row overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-transform duration-150 hover:-translate-y-0.5 sm:block">
         <button
           type="button"
           onClick={() => setShowInputModal(true)}
-          className="relative block aspect-[4/3] w-full bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200]"
+          className="relative block aspect-square w-[34%] max-w-40 shrink-0 self-center bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200] sm:aspect-[4/3] sm:w-full sm:max-w-none"
           aria-label={`Nhập số lượng cho ${item.name}`}
         >
           {!imageFailed ? (
@@ -174,7 +174,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
             </div>
           )}
         </button>
-        <div className="border-t-2 border-[#008061] bg-white p-3">
+        <div className="min-w-0 flex-1 border-l-2 border-[#008061] bg-white p-2.5 sm:border-l-0 sm:border-t-2 sm:p-3">
           <div className="flex min-h-10 items-start justify-between gap-2">
             <h2 className="line-clamp-2 text-sm font-black uppercase leading-5 text-black">
               {item.name}
@@ -196,16 +196,16 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
               <p className="mb-2 text-[10px] font-black uppercase text-stone-500">
                 Lịch sử nhập ({entries.length})
               </p>
-              <div className="max-h-36 divide-y divide-slate-200 overflow-y-auto border-y border-slate-200">
+              <div className="max-h-36 overflow-x-hidden overflow-y-auto border-y border-slate-200">
                 {entries.map((entry, index) => (
                   <div
                     key={`${index}-${typeof entry === "number" ? entry : entry.quantity}`}
-                    className="grid grid-cols-[2.25rem_minmax(2.5rem,1fr)_auto_auto] items-center gap-2 py-1.5"
+                    className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-slate-200 py-1.5 last:border-b-0"
                   >
                     <span className="text-[10px] font-black tabular-nums text-stone-400">
                       {String(index + 1).padStart(2, "0")}
                     </span>
-                    <label className="contents">
+                    <label className="min-w-0">
                     <input
                       type="number"
                       min="1"
@@ -218,7 +218,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                           onUpdate(index, Math.round(value));
                         else event.target.value = typeof entry === "number" ? entry : entry.quantity;
                       }}
-                      className="h-8 w-20 rounded border-2 border-black bg-white px-2 text-center text-sm font-black outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30"
+                      className="h-8 w-full min-w-0 rounded border-2 border-black bg-white px-2 text-center text-sm font-black outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30"
                     />
                     </label>
                     <time
@@ -231,7 +231,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                       type="button"
                       onClick={() => onRemove(index)}
                       aria-label={`Xóa lần nhập ${index + 1} của ${item.name}`}
-                      className="grid h-7 w-7 place-items-center rounded border border-transparent text-stone-400 transition hover:border-[#EE3124] hover:bg-red-50 hover:text-[#EE3124] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE3124]"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded border border-transparent text-stone-400 transition hover:border-[#EE3124] hover:bg-red-50 hover:text-[#EE3124] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE3124]"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -560,7 +560,7 @@ export default function MTOs() {
                 </button>
               </div>
             </div>
-            <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+            <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {mtoItems.map((item) => (
                 <MTOCard
                   key={item.id}
