@@ -520,7 +520,7 @@ export default function MTOs() {
 
   return (
     <>
-      <style>{`.mto-print-sheet { display: none; } @page { size: A4 landscape; margin: 10mm; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
+      <style>{`.mto-product-search::-webkit-search-cancel-button { display: none; appearance: none; } .mto-product-search::-ms-clear { display: none; } .mto-print-sheet { display: none; } @page { size: A4 landscape; margin: 10mm; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
       <main className="no-print min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
         <section className="mx-auto max-w-[1500px] overflow-hidden rounded-xl border-2 border-black bg-white">
           <div
@@ -638,15 +638,20 @@ export default function MTOs() {
             value={productSearch}
             onChange={(event) => setProductSearch(event.target.value)}
             placeholder="Tên sản phẩm..."
-            className="h-11 w-full rounded-xl border-2 border-black bg-[#FF8200] px-3 text-sm font-bold text-black outline-none placeholder:font-normal placeholder:text-black/60 focus:ring-2 focus:ring-white"
+            className="mto-product-search h-11 w-full rounded-xl border-2 border-black bg-[#FF8200] px-3 text-base font-bold text-black outline-none placeholder:font-normal placeholder:text-black/60 focus:ring-2 focus:ring-white sm:text-sm"
           />
         </div>
         <button
           type="button"
-          onClick={() => setShowProductSearch((visible) => !visible)}
+          onClick={() => {
+            setShowProductSearch((visible) => {
+              if (visible) setProductSearch("");
+              return !visible;
+            });
+          }}
           aria-label={showProductSearch ? "Đóng tìm kiếm" : "Tìm sản phẩm"}
           aria-expanded={showProductSearch}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-black shadow-[2px_2px_0_0_#000] transition hover:-translate-y-0.5 hover:bg-orange-400 active:translate-y-0 active:shadow-[1px_1px_0_0_#000]"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-black shadow-[2px_2px_0_0_#000] transition hover:-translate-y-0.5 hover:bg-orange-400 active:translate-y-0 active:shadow-[1px_1px_0_0_#000]"
         >
           {showProductSearch ? <X size={19} /> : <Search size={19} />}
         </button>
