@@ -13,7 +13,6 @@ import { mtoItems } from "../data/mtos";
 
 const STORAGE_KEY = "mtoInventoryEntries";
 const SYSTEM_INVENTORY_KEY = "mtoSystemInventory";
-const DRAFT_STORAGE_PREFIX = "mtoQuantityDraft:";
 
 function normalizeProductName(value) {
   return value
@@ -124,19 +123,11 @@ function downloadExcel(rows) {
 }
 
 function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
-  const [quantity, setQuantity] = useState(
-    () => localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${item.id}`) ?? "",
-  );
+  const [quantity, setQuantity] = useState("");
   const [imageFailed, setImageFailed] = useState(false);
   const [showEntries, setShowEntries] = useState(false);
   const [showInputModal, setShowInputModal] = useState(false);
   const total = entries.reduce((sum, value) => sum + value, 0);
-
-  useEffect(() => {
-    const storageKey = `${DRAFT_STORAGE_PREFIX}${item.id}`;
-    if (quantity) localStorage.setItem(storageKey, quantity);
-    else localStorage.removeItem(storageKey);
-  }, [item.id, quantity]);
 
   const addQuantity = () => {
     const value = Number(quantity);
@@ -282,7 +273,6 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                       if (event.key === "Enter" && addQuantity())
                         setShowInputModal(false);
                     }}
-                    placeholder="Nhập số lượng"
                     className="h-11 min-w-0 rounded-md border-2 border-black px-3 text-base font-bold outline-none focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
                   />
                   <button
@@ -624,9 +614,9 @@ export default function MTOs() {
               <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                 <div className="grid gap-2 sm:grid-cols-3">
                   {[
-                    ["names", "Tên sản phẩm", "Dán cột tên sản phẩm"],
-                    ["quantities", "Số lượng", "Dán cột số lượng"],
-                    ["prices", "Price", "Dán cột Price (không bắt buộc)"],
+                    ["names", "TÊN SẢN PHẨM", "Dán cột tên sản phẩm"],
+                    ["quantities", "SỐ LƯỢNG", "Dán cột số lượng"],
+                    ["prices", "PRICE", "Dán cột Price (không bắt buộc)"],
                   ].map(([key, label, placeholder]) => (
                     <label key={key} className="text-xs font-bold">
                       {label}
