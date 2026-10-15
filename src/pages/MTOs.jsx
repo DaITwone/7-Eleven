@@ -508,7 +508,7 @@ export default function MTOs() {
 
   return (
     <>
-      <style>{`.mto-print-sheet { display: none; } @page { size: A4 landscape; margin: 10mm; } @media print { html, body, #root { width: 277mm !important; min-width: 277mm !important; margin: 0 !important; padding: 0 !important; } .mto-print-sheet { display: block; width: 277mm !important; min-width: 277mm !important; max-width: none !important; padding: 0 !important; } .mto-print-table { width: 100% !important; min-width: 0 !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
+      <style>{`.mto-print-sheet { display: none; } @page { size: A4 landscape; margin: 10mm; } @media print { .mto-print-sheet { display: block; } .mto-print-table { width: 100% !important; table-layout: fixed; border: 1px solid #00843D; } .mto-print-table thead { display: table-header-group; } .mto-print-footer { break-inside: avoid; page-break-inside: avoid; } }`}</style>
       <main className="no-print min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
         <section className="mx-auto max-w-[1500px] overflow-hidden rounded-xl border-2 border-black bg-white">
           <div
