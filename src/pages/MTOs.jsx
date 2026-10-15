@@ -6,6 +6,7 @@ import {
   Plus,
   Printer,
   RotateCcw,
+  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -313,6 +314,8 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
 export default function MTOs() {
   const [records, setRecords] = useState(readEntries);
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
   const [showClearRecordsModal, setShowClearRecordsModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [inventoryColumns, setInventoryColumns] = useState({
@@ -400,7 +403,11 @@ export default function MTOs() {
     () =>
       mtoItems.map((item) => {
         const entries = records[item.id] ?? [];
-        const total = entries.reduce((sum, value) => sum + value, 0);
+        const total = entries.reduce(
+          (sum, entry) =>
+            sum + (typeof entry === "number" ? entry : entry.quantity),
+          0,
+        );
         const hasSystemInventory =
           appliedInventory !== null &&
           Object.prototype.hasOwnProperty.call(appliedInventory, item.id);
@@ -441,6 +448,11 @@ export default function MTOs() {
     [records, appliedInventory, importedInventory],
   );
   const grandTotal = rows.reduce((sum, row) => sum + row.total, 0);
+  const visibleMtoItems = mtoItems.filter((item) =>
+    normalizeProductName(item.name).includes(
+      normalizeProductName(productSearch),
+    ),
+  );
   const systemByItem = useMemo(() => {
     const totals = {};
     (appliedInventory
@@ -567,7 +579,7 @@ export default function MTOs() {
               </div>
             </div>
             <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-              {mtoItems.map((item) => (
+              {visibleMtoItems.map((item) => (
                 <MTOCard
                   key={item.id}
                   item={item}
@@ -605,9 +617,40 @@ export default function MTOs() {
                 />
               ))}
             </div>
+            {visibleMtoItems.length === 0 && (
+              <p className="mt-6 rounded-md border-2 border-dashed border-[#008061]/40 p-6 text-center text-sm font-bold text-slate-500">
+                Không tìm thấy sản phẩm phù hợp.
+              </p>
+            )}
           </div>
         </section>
       </main>
+      <div className="no-print fixed bottom-5 right-5 z-40 flex items-center gap-2 sm:bottom-7 sm:right-7">
+        <div
+          className={`overflow-hidden transition-all duration-200 ease-out ${showProductSearch ? "w-[min(16rem,calc(100vw-5rem))] opacity-100" : "w-0 opacity-0"}`}
+          aria-hidden={!showProductSearch}
+        >
+          <input
+            id="mto-product-search"
+            autoFocus={showProductSearch}
+            type="search"
+            tabIndex={showProductSearch ? 0 : -1}
+            value={productSearch}
+            onChange={(event) => setProductSearch(event.target.value)}
+            placeholder="Tên sản phẩm..."
+            className="h-11 w-full rounded-xl border-2 border-black bg-[#FF8200] px-3 text-sm font-bold text-black outline-none placeholder:font-normal placeholder:text-black/60 focus:ring-2 focus:ring-white"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowProductSearch((visible) => !visible)}
+          aria-label={showProductSearch ? "Đóng tìm kiếm" : "Tìm sản phẩm"}
+          aria-expanded={showProductSearch}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-black bg-[#FF8200] text-black shadow-[2px_2px_0_0_#000] transition hover:-translate-y-0.5 hover:bg-orange-400 active:translate-y-0 active:shadow-[1px_1px_0_0_#000]"
+        >
+          {showProductSearch ? <X size={19} /> : <Search size={19} />}
+        </button>
+      </div>
       {showInventoryModal && (
         <div
           className="fixed inset-0 z-[60] flex items-stretch justify-center bg-slate-950/65 p-0 backdrop-blur-sm sm:items-center sm:p-3"
