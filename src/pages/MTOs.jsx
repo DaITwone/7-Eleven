@@ -108,7 +108,7 @@ function formatEntryTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   const pad = (part) => String(part).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())} ${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${String(date.getFullYear()).slice(-2)}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function downloadExcel(rows) {
@@ -337,7 +337,10 @@ export default function MTOs() {
         const nextRecords = {};
         for (const entry of data.entries ?? []) {
           if (!nextRecords[entry.productId]) nextRecords[entry.productId] = [];
-          nextRecords[entry.productId].push(entry.quantity);
+          nextRecords[entry.productId].push({
+            quantity: entry.quantity,
+            createdAt: entry.createdAt,
+          });
         }
         setRecords(nextRecords);
         setAppliedInventory(
@@ -362,6 +365,9 @@ export default function MTOs() {
       quantities.map((entry) => ({
         productId,
         quantity: typeof entry === "number" ? entry : entry.quantity,
+        ...(typeof entry === "number" || !entry.createdAt
+          ? {}
+          : { createdAt: entry.createdAt }),
       })),
     );
     const timer = window.setTimeout(() => {

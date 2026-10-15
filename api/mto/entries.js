@@ -25,9 +25,10 @@ export default async function handler(req, res) {
         prisma.mtoSystemInventory.findMany(),
       ]);
       return send(res, 200, {
-        entries: entries.map(({ productId, quantity }) => ({
+        entries: entries.map(({ productId, quantity, createdAt }) => ({
           productId,
           quantity,
+          createdAt,
         })),
         systemInventory: Object.fromEntries(
           inventory.map(({ id, quantity }) => [id, quantity]),
@@ -50,7 +51,10 @@ export default async function handler(req, res) {
         (entry) =>
           typeof entry?.productId === "string" &&
           Number.isFinite(entry.quantity) &&
-          entry.quantity > 0,
+          entry.quantity > 0 &&
+          (entry.createdAt === undefined ||
+            (typeof entry.createdAt === "string" &&
+              Number.isFinite(Date.parse(entry.createdAt)))),
       ) ||
       systemInventory === null ||
       typeof systemInventory !== "object" ||
@@ -65,7 +69,13 @@ export default async function handler(req, res) {
     try {
       await prisma.$transaction([
         prisma.mtoEntry.deleteMany(),
-        prisma.mtoEntry.createMany({ data: entries }),
+        prisma.mtoEntry.createMany({
+          data: entries.map(({ productId, quantity, createdAt }) => ({
+            productId,
+            quantity,
+            ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+          })),
+        }),
         prisma.mtoSystemInventory.deleteMany(),
         ...(Object.entries(systemInventory).length
           ? [
