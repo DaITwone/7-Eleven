@@ -154,7 +154,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
         <button
           type="button"
           onClick={() => setShowInputModal(true)}
-          className="relative block aspect-square w-[34%] max-w-40 shrink-0 self-center bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200] sm:aspect-[4/3] sm:w-full sm:max-w-none"
+          className="relative block aspect-square w-[28%] max-w-40 shrink-0 self-center bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200] sm:aspect-[4/3] sm:w-full sm:max-w-none"
           aria-label={`Nhập số lượng cho ${item.name}`}
         >
           {!imageFailed ? (
@@ -174,7 +174,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
             </div>
           )}
         </button>
-        <div className="min-w-0 flex-1 border-l-2 border-[#008061] bg-white p-2.5 sm:border-l-0 sm:border-t-2 sm:p-3">
+        <div className="min-w-0 flex-1 border-l-2 border-[#008061] bg-white p-2 sm:p-3 sm:border-l-0 sm:border-t-2">
           <div className="flex min-h-10 items-start justify-between gap-2">
             <h2 className="line-clamp-2 text-sm font-black uppercase leading-5 text-black">
               {item.name}
@@ -200,7 +200,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                 {entries.map((entry, index) => (
                   <div
                     key={`${index}-${typeof entry === "number" ? entry : entry.quantity}`}
-                    className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-slate-200 py-1.5 last:border-b-0"
+                    className="grid min-w-0 grid-cols-[1.5rem_minmax(3.5rem,1fr)_auto_auto] items-center gap-1 border-b border-slate-200 py-1.5 last:border-b-0 min-[390px]:grid-cols-[2rem_minmax(4.5rem,1fr)_auto_auto] min-[390px]:gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]"
                   >
                     <span className="text-[10px] font-black tabular-nums text-stone-400">
                       {String(index + 1).padStart(2, "0")}
@@ -218,11 +218,11 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                           onUpdate(index, Math.round(value));
                         else event.target.value = typeof entry === "number" ? entry : entry.quantity;
                       }}
-                      className="h-8 w-full min-w-0 rounded border-2 border-black bg-white px-2 text-center text-sm font-black outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30"
+                      className="h-8 w-full min-w-0 rounded border-2 border-black bg-white px-1 text-center text-sm font-black tabular-nums outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30 min-[390px]:px-2"
                     />
                     </label>
                     <time
-                      className="whitespace-nowrap text-[9px] font-bold tabular-nums text-stone-500"
+                      className="whitespace-nowrap text-[8px] font-bold tabular-nums text-stone-500 min-[390px]:text-[9px]"
                       dateTime={typeof entry === "number" ? undefined : entry.createdAt}
                     >
                       {formatEntryTime(typeof entry === "number" ? null : entry.createdAt)}
