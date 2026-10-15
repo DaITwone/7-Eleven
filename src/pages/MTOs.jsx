@@ -338,10 +338,14 @@ export default function MTOs() {
       fetch("/api/mto/entries", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries, systemInventory: appliedInventory ?? {} }),
+        body: JSON.stringify({
+          entries,
+          systemInventory: appliedInventory ?? {},
+        }),
       })
         .then((response) => {
-          if (!response.ok) throw new Error("Không lưu được dữ liệu lên database.");
+          if (!response.ok)
+            throw new Error("Không lưu được dữ liệu lên database.");
           setDatabaseError("");
         })
         .catch((error) => setDatabaseError(error.message));
@@ -387,7 +391,8 @@ export default function MTOs() {
           entries: entries.length,
           total,
           systemTotal,
-          price: Number.isFinite(price) && imported?.price !== "" ? price : null,
+          price:
+            Number.isFinite(price) && imported?.price !== "" ? price : null,
           amount:
             systemTotal !== null &&
             Number.isFinite(price) &&
@@ -472,8 +477,12 @@ export default function MTOs() {
           />
           <div className="p-5 md:p-7">
             {databaseError && (
-              <p role="alert" className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
-                {databaseError} Dữ liệu đang lưu trên thiết bị này; hãy kiểm tra API và cấu hình database.
+              <p
+                role="alert"
+                className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800"
+              >
+                {databaseError} Dữ liệu đang lưu trên thiết bị này; hãy kiểm tra
+                API và cấu hình database.
               </p>
             )}
             <div className="mto-actions flex flex-col gap-4 border-b-2 border-dashed border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
@@ -514,7 +523,6 @@ export default function MTOs() {
                 >
                   <Printer size={18} /> PDF
                 </button>
-                
               </div>
             </div>
             <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
@@ -595,10 +603,11 @@ export default function MTOs() {
                   onChange={(event) => setInventoryText(event.target.value)}
                   rows={5}
                   placeholder={
-                    "Tên sản phẩm\tSố lượng tồn\nTrứng\t12\nSữa Meiji\t8"
+                    "Tên sản phẩm\tSố lượng tồn\tPrice\nTrứng\t12\t3000\nSữa Meiji\t8\t8000"
                   }
                   className="min-h-28 w-full rounded-lg border-2 border-slate-300 p-3 font-mono text-sm outline-none focus:border-[#007A3D]"
                 />
+
                 <button
                   type="button"
                   onClick={() =>
@@ -782,30 +791,149 @@ export default function MTOs() {
                   </div>
                   <div className="space-y-2 sm:hidden">
                     {importedInventory.map((entry, index) => {
-                      const ambiguous = entry.matches.length !== 1 || !entry.matches[0] || normalizeProductName(entry.name) !== normalizeProductName(entry.matches[0]?.name);
-                      const target = entry.matches.find((item) => item.id === entry.selectedId) ?? (!ambiguous ? entry.matches[0] : null);
-                      const actual = target ? rows.find((row) => row.id === target.id)?.total ?? 0 : null;
-                      const difference = target && Number.isFinite(Number(entry.quantity)) ? Number(entry.quantity) - actual : null;
+                      const ambiguous =
+                        entry.matches.length !== 1 ||
+                        !entry.matches[0] ||
+                        normalizeProductName(entry.name) !==
+                          normalizeProductName(entry.matches[0]?.name);
+                      const target =
+                        entry.matches.find(
+                          (item) => item.id === entry.selectedId,
+                        ) ?? (!ambiguous ? entry.matches[0] : null);
+                      const actual = target
+                        ? (rows.find((row) => row.id === target.id)?.total ?? 0)
+                        : null;
+                      const difference =
+                        target && Number.isFinite(Number(entry.quantity))
+                          ? Number(entry.quantity) - actual
+                          : null;
                       const price = Number(entry.price) || 0;
                       const amount = (Number(entry.quantity) || 0) * price;
                       return (
-                        <article key={`mobile-${entry.name}-${index}`} className={`rounded-lg border p-3 ${difference !== null && difference < 0 ? "border-amber-500 bg-amber-200" : ambiguous ? "border-amber-400 bg-amber-100" : "border-slate-200 bg-white"}`}>
+                        <article
+                          key={`mobile-${entry.name}-${index}`}
+                          className={`rounded-lg border p-3 ${difference !== null && difference < 0 ? "border-amber-500 bg-amber-200" : ambiguous ? "border-amber-400 bg-amber-100" : "border-slate-200 bg-white"}`}
+                        >
                           <p className="font-black">{entry.name}</p>
                           <div className="mt-2">
-                            <label className="mb-1 block text-[11px] font-bold uppercase text-slate-500">Mặt hàng trên trang</label>
+                            <label className="mb-1 block text-[11px] font-bold uppercase text-slate-500">
+                              Mặt hàng trên trang
+                            </label>
                             {ambiguous ? (
-                              <select value={entry.selectedId ?? ""} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, selectedId: event.target.value } : row))} className="w-full rounded border border-amber-500 bg-white px-2 py-2 text-sm">
-                                <option value="">{entry.matches.length ? `Chọn mặt hàng (${entry.matches.length} phù hợp)` : "Không tìm thấy — sửa tên dòng"}</option>
-                                {entry.matches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                              <select
+                                value={entry.selectedId ?? ""}
+                                onChange={(event) =>
+                                  setSystemInventory((current) =>
+                                    current.map((row, rowIndex) =>
+                                      rowIndex === index
+                                        ? {
+                                            ...row,
+                                            selectedId: event.target.value,
+                                          }
+                                        : row,
+                                    ),
+                                  )
+                                }
+                                className="w-full rounded border border-amber-500 bg-white px-2 py-2 text-sm"
+                              >
+                                <option value="">
+                                  {entry.matches.length
+                                    ? `Chọn mặt hàng (${entry.matches.length} phù hợp)`
+                                    : "Không tìm thấy — sửa tên dòng"}
+                                </option>
+                                {entry.matches.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
                               </select>
-                            ) : <p className="text-sm font-bold">{target?.name}</p>}
+                            ) : (
+                              <p className="text-sm font-bold">
+                                {target?.name}
+                              </p>
+                            )}
                           </div>
                           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                            <label className="min-w-0"><span className="mb-1 block font-bold text-slate-500">Tồn hệ thống</span><input type="number" min="0" step="any" value={entry.quantity} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: event.target.value === "" ? "" : Number(event.target.value) } : row))} className="w-full rounded border border-slate-300 px-2 py-2 text-sm" /></label>
-                            <label className="min-w-0"><span className="mb-1 block font-bold text-slate-500">Price</span><input type="number" min="0" step="any" value={entry.price ?? ""} onChange={(event) => setSystemInventory((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, price: event.target.value === "" ? "" : Number(event.target.value) } : row))} className="w-full rounded border border-slate-300 px-2 py-2 text-sm" /></label>
-                            <div><span className="mb-1 block font-bold text-slate-500">Amount</span><p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">{amount.toLocaleString("vi-VN")}</p></div>
-                            <div><span className="mb-1 block font-bold text-slate-500">Thực tế</span><p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">{target ? actual : "—"}</p></div>
-                            <div><span className="mb-1 block font-bold text-slate-500">Chênh lệch</span><p className={`rounded px-2 py-2 text-sm font-black ${difference !== null && difference < 0 ? "bg-amber-300 text-amber-950" : difference === 0 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{difference ?? "—"}</p></div>
+                            <label className="min-w-0">
+                              <span className="mb-1 block font-bold text-slate-500">
+                                Tồn hệ thống
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={entry.quantity}
+                                onChange={(event) =>
+                                  setSystemInventory((current) =>
+                                    current.map((row, rowIndex) =>
+                                      rowIndex === index
+                                        ? {
+                                            ...row,
+                                            quantity:
+                                              event.target.value === ""
+                                                ? ""
+                                                : Number(event.target.value),
+                                          }
+                                        : row,
+                                    ),
+                                  )
+                                }
+                                className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                              />
+                            </label>
+                            <label className="min-w-0">
+                              <span className="mb-1 block font-bold text-slate-500">
+                                Price
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={entry.price ?? ""}
+                                onChange={(event) =>
+                                  setSystemInventory((current) =>
+                                    current.map((row, rowIndex) =>
+                                      rowIndex === index
+                                        ? {
+                                            ...row,
+                                            price:
+                                              event.target.value === ""
+                                                ? ""
+                                                : Number(event.target.value),
+                                          }
+                                        : row,
+                                    ),
+                                  )
+                                }
+                                className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
+                              />
+                            </label>
+                            <div>
+                              <span className="mb-1 block font-bold text-slate-500">
+                                Amount
+                              </span>
+                              <p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">
+                                {amount.toLocaleString("vi-VN")}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="mb-1 block font-bold text-slate-500">
+                                Thực tế
+                              </span>
+                              <p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">
+                                {target ? actual : "—"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="mb-1 block font-bold text-slate-500">
+                                Chênh lệch
+                              </span>
+                              <p
+                                className={`rounded px-2 py-2 text-sm font-black ${difference !== null && difference < 0 ? "bg-amber-300 text-amber-950" : difference === 0 ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}
+                              >
+                                {difference ?? "—"}
+                              </p>
+                            </div>
                           </div>
                         </article>
                       );
@@ -852,13 +980,34 @@ export default function MTOs() {
                     </table>
                   </div>
                   <div className="space-y-2 sm:hidden">
-                    {rows.filter((row) => !Object.prototype.hasOwnProperty.call(systemByItem, row.id) && row.total !== 0).map((row) => (
-                      <article key={`missing-mobile-${row.id}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border border-amber-500 bg-amber-200 p-3 text-sm">
-                        <span className="font-bold">{row.name}</span>
-                        <span><span className="block text-[10px] font-bold uppercase text-slate-600">Thực tế</span>{row.total}</span>
-                        <span className="font-black text-red-700"><span className="block text-[10px] uppercase text-slate-600">Lệch</span>{-row.total}</span>
-                      </article>
-                    ))}
+                    {rows
+                      .filter(
+                        (row) =>
+                          !Object.prototype.hasOwnProperty.call(
+                            systemByItem,
+                            row.id,
+                          ) && row.total !== 0,
+                      )
+                      .map((row) => (
+                        <article
+                          key={`missing-mobile-${row.id}`}
+                          className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border border-amber-500 bg-amber-200 p-3 text-sm"
+                        >
+                          <span className="font-bold">{row.name}</span>
+                          <span>
+                            <span className="block text-[10px] font-bold uppercase text-slate-600">
+                              Thực tế
+                            </span>
+                            {row.total}
+                          </span>
+                          <span className="font-black text-red-700">
+                            <span className="block text-[10px] uppercase text-slate-600">
+                              Lệch
+                            </span>
+                            {-row.total}
+                          </span>
+                        </article>
+                      ))}
                   </div>
                   <div className="flex justify-end">
                     <button
@@ -939,81 +1088,81 @@ export default function MTOs() {
           </div>
         </header>
         <div>
-            <table className="mto-print-table w-full min-w-0 table-fixed border-collapse text-[9px]">
-              <thead>
-                <tr className="bg-[#00843D] text-white">
-                  <th className="w-[5%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    STT
-                  </th>
-                  <th className="w-[8%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Mặt hàng
-                  </th>
-                  <th className="w-[29%] border-2 border-[#006B35] px-2 py-2 text-left font-black uppercase">
-                    Tên mặt hàng
-                  </th>
-                  <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Tồn hệ thống
-                  </th>
-                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Price
-                  </th>
-                  <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Amount
-                  </th>
-                  <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Tồn thực tế
-                  </th>
-                  <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
-                    Chênh lệch
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => {
-                  return (
-                    <tr
-                      key={row.id}
-                      className={
-                        row.difference !== null && row.difference < 0
-                          ? "bg-amber-200"
-                          : index % 2 === 0
-                            ? "bg-white"
-                            : "bg-[#F8FCF9]"
-                      }
-                    >
-                      <td className="border-b border-l-2 border-r border-[#00843D]/30 p-1 text-center font-bold">
-                        {index + 1}
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 p-1 text-center">
-                        <img
-                          src={row.image}
-                          alt=""
-                          className="mx-auto h-8 w-12 object-contain"
-                        />
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 px-2 py-1 font-black uppercase">
-                        {row.name}
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
-                        {row.systemTotal ?? "—"}
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
-                        {row.price?.toLocaleString("vi-VN") ?? "—"}
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
-                        {row.amount?.toLocaleString("vi-VN") ?? "—"}
-                      </td>
-                      <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-black text-[#ED1C24]">
-                        {row.total}
-                      </td>
-                      <td className="border-b border-r-2 border-[#00843D]/30 px-1 py-1 text-center font-black">
-                        {row.difference ?? "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <table className="mto-print-table w-full min-w-0 table-fixed border-collapse text-[9px]">
+            <thead>
+              <tr className="bg-[#00843D] text-white">
+                <th className="w-[5%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  STT
+                </th>
+                <th className="w-[8%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Mặt hàng
+                </th>
+                <th className="w-[29%] border-2 border-[#006B35] px-2 py-2 text-left font-black uppercase">
+                  Tên mặt hàng
+                </th>
+                <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Tồn hệ thống
+                </th>
+                <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Price
+                </th>
+                <th className="w-[11%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Amount
+                </th>
+                <th className="w-[10%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Tồn thực tế
+                </th>
+                <th className="w-[16%] border-2 border-[#006B35] px-1 py-2 text-center font-black uppercase">
+                  Chênh lệch
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                return (
+                  <tr
+                    key={row.id}
+                    className={
+                      row.difference !== null && row.difference < 0
+                        ? "bg-amber-200"
+                        : index % 2 === 0
+                          ? "bg-white"
+                          : "bg-[#F8FCF9]"
+                    }
+                  >
+                    <td className="border-b border-l-2 border-r border-[#00843D]/30 p-1 text-center font-bold">
+                      {index + 1}
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 p-1 text-center">
+                      <img
+                        src={row.image}
+                        alt=""
+                        className="mx-auto h-8 w-12 object-contain"
+                      />
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 px-2 py-1 font-black uppercase">
+                      {row.name}
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
+                      {row.systemTotal ?? "—"}
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
+                      {row.price?.toLocaleString("vi-VN") ?? "—"}
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-bold">
+                      {row.amount?.toLocaleString("vi-VN") ?? "—"}
+                    </td>
+                    <td className="border-b border-r border-[#00843D]/30 px-1 py-1 text-center font-black text-[#ED1C24]">
+                      {row.total}
+                    </td>
+                    <td className="border-b border-r-2 border-[#00843D]/30 px-1 py-1 text-center font-black">
+                      {row.difference ?? "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <footer className="mto-print-footer mt-5">
           <div className="flex items-start justify-end">
