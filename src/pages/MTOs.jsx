@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ClipboardPaste,
   FileSpreadsheet,
@@ -294,6 +294,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
 export default function MTOs() {
   const [records, setRecords] = useState(readEntries);
+  const [showClearRecordsModal, setShowClearRecordsModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [inventoryColumns, setInventoryColumns] = useState({
     names: "",
@@ -515,10 +516,8 @@ export default function MTOs() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm("Xóa toàn bộ số lượng đã nhập?"))
-                      setRecords({});
-                  }}
+                  onClick={() => setShowClearRecordsModal(true)}
+                  aria-label="Xóa toàn bộ số lượng đã nhập"
                   className="inline-flex items-center gap-2 rounded-md border-2 border-black px-3 py-2 text-sm font-black uppercase hover:bg-stone-100"
                 >
                   <RotateCcw size={17} />
@@ -1087,6 +1086,62 @@ export default function MTOs() {
               )}
             </div>
           </section>
+        </div>
+      )}
+      {showClearRecordsModal && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/65 p-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget &&
+            setShowClearRecordsModal(false)
+          }
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="clear-mto-title"
+            aria-describedby="clear-mto-description"
+            className="w-full max-w-sm overflow-hidden rounded-2xl border-2 border-black bg-white shadow-[5px_5px_0_0_#000]"
+          >
+            <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#EE3124] p-4 text-white">
+              <h2 id="clear-mto-title" className="text-base font-black uppercase">
+                Xóa số lượng đã nhập?
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowClearRecordsModal(false)}
+                className="rounded-md p-1 hover:bg-white/20"
+                aria-label="Đóng"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <p id="clear-mto-description" className="text-sm text-slate-700">
+                Toàn bộ số lượng đã nhập sẽ bị xóa. Tiếp tục?
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowClearRecordsModal(false)}
+                  className="rounded-md border-2 border-black px-4 py-2 text-sm font-black uppercase hover:bg-stone-100"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecords({});
+                    setShowClearRecordsModal(false);
+                  }}
+                  className="rounded-md border-2 border-black bg-[#EE3124] px-4 py-2 text-sm font-black uppercase text-white shadow-[2px_2px_0_0_#000] hover:bg-red-700"
+                >
+                  Xóa tất cả
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <div className="mto-print-sheet print-only bg-white text-black">
