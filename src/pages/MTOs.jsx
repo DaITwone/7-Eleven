@@ -26,29 +26,42 @@ function normalizeProductName(value) {
     .replace(/\s+/g, " ");
 }
 
-function parseSystemInventory(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => {
-      const columns = line.split(/[\t;,]/).map((value) => value.trim());
-      if (columns.length < 2) return null;
-      const quantityText = columns[columns.length - 1]
-        .replace(/\s/g, "")
-        .replace(/\.(?=\d{3}(?:\D|$))/g, "")
-        .replace(",", ".");
-      const quantity = Number(quantityText);
-      const name = columns.slice(0, -1).join(" ").trim();
-      if (
-        /^(t[eê]n( s[aả]n ph[aẩ]m)?|s[oố] l[uư][oợ]ng( t[oồ]n( h[eệ] th[oố]ng)?)?)$/i.test(
-          name,
-        )
-      )
-        return null;
-      return name && Number.isFinite(quantity) && quantity >= 0
-        ? { name, quantity }
-        : null;
-    })
-    .filter(Boolean);
+function splitPastedColumn(text) {
+  return text.split(/\r?\n/).map((value) => value.trim());
+}
+
+function parseSystemInventory(namesText, quantitiesText, pricesText) {
+  const names = splitPastedColumn(namesText);
+  const quantities = splitPastedColumn(quantitiesText);
+  const prices = splitPastedColumn(pricesText);
+  const rowCount = Math.max(names.length, quantities.length, prices.length);
+
+  return Array.from({ length: rowCount }, (_, index) => {
+    const name = names[index] ?? "";
+    const quantityText = (quantities[index] ?? "")
+      .replace(/\s/g, "")
+      .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+      .replace(",", ".");
+    const priceText = (prices[index] ?? "")
+      .replace(/\s/g, "")
+      .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+      .replace(",", ".");
+    const quantity = Number(quantityText);
+    const price = Number(priceText);
+    if (/^(t[eê]n( s[aả]n ph[aẩ]m)?|name)$/i.test(name)) return null;
+    if (!name && !quantityText && !priceText) return null;
+
+    return {
+      name,
+      quantity:
+        quantityText !== "" && Number.isFinite(quantity) && quantity >= 0
+          ? quantity
+          : "",
+      price:
+        priceText !== "" && Number.isFinite(price) && price >= 0 ? price : "",
+      quantityMissing: quantityText === "",
+    };
+  }).filter(Boolean);
 }
 
 function findProductMatches(name) {
@@ -292,7 +305,11 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 export default function MTOs() {
   const [records, setRecords] = useState(readEntries);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [inventoryText, setInventoryText] = useState("");
+  const [inventoryColumns, setInventoryColumns] = useState({
+    names: "",
+    quantities: "",
+    prices: "",
+  });
   const [systemInventory, setSystemInventory] = useState(null);
   const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
   const [databaseReady, setDatabaseReady] = useState(false);
@@ -418,10 +435,16 @@ export default function MTOs() {
     });
     return totals;
   }, [appliedInventory]);
+  const missingSystemInventoryRows = rows.filter(
+    (row) =>
+      !Object.prototype.hasOwnProperty.call(systemByItem, row.id) &&
+      row.total !== 0,
+  );
   const applySystemInventory = () => {
     const next = {};
     let unresolved = false;
     importedInventory.forEach((entry) => {
+      if (entry.selectedId === "other") return;
       const target =
         entry.matches.find((item) => item.id === entry.selectedId) ??
         (entry.matches.length === 1 &&
@@ -431,6 +454,7 @@ export default function MTOs() {
           : null);
       if (
         !target ||
+        entry.quantity === "" ||
         !Number.isFinite(Number(entry.quantity)) ||
         Number(entry.quantity) < 0
       ) {
@@ -583,8 +607,8 @@ export default function MTOs() {
                   Đối chiếu tồn hệ thống
                 </h2>
                 <p className="text-xs font-semibold text-white/80">
-                  Dán hai cột Excel: tên sản phẩm, số lượng tồn (mỗi dòng một
-                  sản phẩm).
+                  Dán riêng từng cột từ Excel; dữ liệu ghép theo thứ tự dòng.
+                  Price có thể để trống, còn Số lượng cần có trước khi áp dụng.
                 </p>
               </div>
               <button
@@ -597,21 +621,40 @@ export default function MTOs() {
               </button>
             </header>
             <div className="space-y-4 p-4">
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <textarea
-                  value={inventoryText}
-                  onChange={(event) => setInventoryText(event.target.value)}
-                  rows={5}
-                  placeholder={
-                    "Tên sản phẩm\tSố lượng tồn\tPrice\nTrứng\t12\t3000\nSữa Meiji\t8\t8000"
-                  }
-                  className="min-h-28 w-full rounded-lg border-2 border-slate-300 p-3 font-mono text-sm outline-none focus:border-[#007A3D]"
-                />
-
+              <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    ["names", "Tên sản phẩm", "Dán cột tên sản phẩm"],
+                    ["quantities", "Số lượng", "Dán cột số lượng"],
+                    ["prices", "Price", "Dán cột Price (không bắt buộc)"],
+                  ].map(([key, label, placeholder]) => (
+                    <label key={key} className="text-xs font-bold">
+                      {label}
+                      <textarea
+                        value={inventoryColumns[key]}
+                        onChange={(event) =>
+                          setInventoryColumns((current) => ({
+                            ...current,
+                            [key]: event.target.value,
+                          }))
+                        }
+                        rows={5}
+                        placeholder={placeholder}
+                        className="mt-1 min-h-28 w-full rounded-lg border-2 border-slate-300 p-3 font-mono text-sm font-normal outline-none focus:border-[#007A3D]"
+                      />
+                    </label>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() =>
-                    setSystemInventory(parseSystemInventory(inventoryText))
+                    setSystemInventory(
+                      parseSystemInventory(
+                        inventoryColumns.names,
+                        inventoryColumns.quantities,
+                        inventoryColumns.prices,
+                      ),
+                    )
                   }
                   className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-lg border-2 border-black bg-[#FF8200] px-4 py-2 text-sm font-black uppercase hover:bg-orange-400"
                 >
@@ -630,7 +673,11 @@ export default function MTOs() {
                       onClick={() => {
                         setSystemInventory(null);
                         setAppliedInventory(null);
-                        setInventoryText("");
+                        setInventoryColumns({
+                          names: "",
+                          quantities: "",
+                          prices: "",
+                        });
                         localStorage.removeItem(SYSTEM_INVENTORY_KEY);
                       }}
                       className="rounded-md border border-slate-300 px-3 py-1.5 font-bold hover:bg-slate-50"
@@ -661,7 +708,8 @@ export default function MTOs() {
                       </thead>
                       <tbody>
                         {importedInventory.map((entry, index) => {
-                          const ambiguous =
+                          const selectedOther = entry.selectedId === "other";
+    const ambiguous =
                             entry.matches.length !== 1 ||
                             !entry.matches[0] ||
                             normalizeProductName(entry.name) !==
@@ -676,7 +724,9 @@ export default function MTOs() {
                                 ?.total ?? 0)
                             : null;
                           const difference =
-                            target && Number.isFinite(Number(entry.quantity))
+                              target &&
+                              entry.quantity !== "" &&
+                              Number.isFinite(Number(entry.quantity))
                               ? Number(entry.quantity) - actual
                               : null;
                           const price = Number(entry.price) || 0;
@@ -710,6 +760,7 @@ export default function MTOs() {
                                         ? `Chọn mặt hàng (${entry.matches.length} phù hợp)`
                                         : "Không tìm thấy — đổi tên dòng trong ô dán"}
                                     </option>
+                                    <option value="other">Khác</option>
                                     {entry.matches.map((item) => (
                                       <option key={item.id} value={item.id}>
                                         {item.name}
@@ -736,6 +787,8 @@ export default function MTOs() {
                                                 event.target.value === ""
                                                   ? ""
                                                   : Number(event.target.value),
+                                          quantityMissing:
+                                            event.target.value === "",
                                             }
                                           : row,
                                       ),
@@ -774,7 +827,7 @@ export default function MTOs() {
                                 {amount.toLocaleString("vi-VN")}
                               </td>
                               <td className="p-2 font-bold">
-                                {target ? actual : "—"}
+                                {selectedOther ? "—" : target ? actual : "—"}
                               </td>
                               <td
                                 className={`p-2 font-black ${difference !== null ? (difference !== 0 ? "text-red-700" : "text-emerald-700") : "text-slate-400"}`}
@@ -791,6 +844,7 @@ export default function MTOs() {
                   </div>
                   <div className="space-y-2 sm:hidden">
                     {importedInventory.map((entry, index) => {
+                      const selectedOther = entry.selectedId === "other";
                       const ambiguous =
                         entry.matches.length !== 1 ||
                         !entry.matches[0] ||
@@ -804,7 +858,9 @@ export default function MTOs() {
                         ? (rows.find((row) => row.id === target.id)?.total ?? 0)
                         : null;
                       const difference =
-                        target && Number.isFinite(Number(entry.quantity))
+                        target &&
+                        entry.quantity !== "" &&
+                        Number.isFinite(Number(entry.quantity))
                           ? Number(entry.quantity) - actual
                           : null;
                       const price = Number(entry.price) || 0;
@@ -841,6 +897,7 @@ export default function MTOs() {
                                     ? `Chọn mặt hàng (${entry.matches.length} phù hợp)`
                                     : "Không tìm thấy — sửa tên dòng"}
                                 </option>
+                                <option value="other">Khác</option>
                                 {entry.matches.map((item) => (
                                   <option key={item.id} value={item.id}>
                                     {item.name}
@@ -873,6 +930,8 @@ export default function MTOs() {
                                               event.target.value === ""
                                                 ? ""
                                                 : Number(event.target.value),
+                                            quantityMissing:
+                                              event.target.value === "",
                                           }
                                         : row,
                                     ),
@@ -921,7 +980,7 @@ export default function MTOs() {
                                 Thực tế
                               </span>
                               <p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">
-                                {target ? actual : "—"}
+                                {selectedOther ? "—" : target ? actual : "—"}
                               </p>
                             </div>
                             <div>
@@ -944,6 +1003,8 @@ export default function MTOs() {
                     không có trong danh sách dán sẽ được xem là tồn hệ thống 0
                     sau khi áp dụng.
                   </p>
+                  {missingSystemInventoryRows.length > 0 && (
+                    <>
                   <div className="hide-scrollbar hidden max-h-48 overflow-y-auto rounded-lg border border-slate-200 sm:block">
                     <table className="w-full border-collapse text-sm">
                       <thead className="sticky top-0 bg-slate-100 text-left text-xs font-black uppercase">
@@ -956,15 +1017,7 @@ export default function MTOs() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows
-                          .filter(
-                            (row) =>
-                              !Object.prototype.hasOwnProperty.call(
-                                systemByItem,
-                                row.id,
-                              ) && row.total !== 0,
-                          )
-                          .map((row) => (
+                        {missingSystemInventoryRows.map((row) => (
                             <tr
                               key={row.id}
                               className="border-t border-slate-200 bg-amber-200"
@@ -980,15 +1033,7 @@ export default function MTOs() {
                     </table>
                   </div>
                   <div className="space-y-2 sm:hidden">
-                    {rows
-                      .filter(
-                        (row) =>
-                          !Object.prototype.hasOwnProperty.call(
-                            systemByItem,
-                            row.id,
-                          ) && row.total !== 0,
-                      )
-                      .map((row) => (
+                    {missingSystemInventoryRows.map((row) => (
                         <article
                           key={`missing-mobile-${row.id}`}
                           className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border border-amber-500 bg-amber-200 p-3 text-sm"
@@ -1009,11 +1054,14 @@ export default function MTOs() {
                         </article>
                       ))}
                   </div>
+                    </>
+                  )}
                   <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={applySystemInventory}
                       disabled={importedInventory.some((entry) => {
+                        if (entry.selectedId === "other") return false;
                         const target =
                           entry.matches.find(
                             (item) => item.id === entry.selectedId,
@@ -1025,6 +1073,7 @@ export default function MTOs() {
                             : null);
                         return (
                           !target ||
+                          entry.quantity === "" ||
                           !Number.isFinite(Number(entry.quantity)) ||
                           Number(entry.quantity) < 0
                         );
