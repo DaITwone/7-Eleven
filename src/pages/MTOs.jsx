@@ -289,7 +289,14 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
             </div>
             <div className="p-4">
               <label className="block text-xs font-black uppercase text-black">
-                Số lượng
+                <span className="flex items-center gap-1.5">
+                  <span>Số lượng</span>
+                  {item.unit && (
+                    <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[13px] font-bold uppercase text-sky-900">
+                      {item.unit}
+                    </span>
+                  )}
+                </span>
                 <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
                   <input
                     autoFocus
@@ -302,7 +309,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                       if (event.key === "Enter" && addQuantity())
                         setShowInputModal(false);
                     }}
-                    className="h-11 min-w-0 rounded-md border-2 border-black px-3 text-base font-bold outline-none focus:bg-orange-50 focus:ring-4 focus:ring-[#FF8200]/30"
+                    className="h-11 min-w-0 rounded-md border-2 border-black px-3 text-base font-bold outline-none focus:bg-orange-50 focus:ring-2 focus:ring-[#FF8200]/30"
                   />
                   <button
                     type="button"
