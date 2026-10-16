@@ -151,11 +151,11 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
 
   return (
     <>
-      <article className="flex min-w-0 flex-row overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-transform duration-150 hover:-translate-y-0.5 sm:block">
+      <article className="flex min-w-0 flex-col overflow-hidden rounded-md border-2 border-[#008061] bg-white shadow-[3px_3px_0_0_#008061] transition-transform duration-150 hover:-translate-y-0.5">
         <button
           type="button"
           onClick={() => setShowInputModal(true)}
-          className="relative block aspect-square w-[28%] max-w-40 shrink-0 self-center bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200] sm:aspect-[4/3] sm:w-full sm:max-w-none"
+          className="relative block h-32 w-full max-w-none shrink-0 self-center bg-white transition-colors hover:bg-[#F4FAF6] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#FF8200] sm:h-40"
           aria-label={`Nhập số lượng cho ${item.name}`}
         >
           {!imageFailed ? (
@@ -175,7 +175,7 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
             </div>
           )}
         </button>
-        <div className="min-w-0 flex-1 border-l-2 border-[#008061] bg-white p-2 sm:p-3 sm:border-l-0 sm:border-t-2">
+        <div className="min-w-0 flex-1 border-t-2 border-[#008061] bg-white p-2 sm:p-3">
           <div className="flex min-h-10 items-start justify-between gap-2">
             <h2 className="line-clamp-2 text-sm font-black uppercase leading-5 text-black">
               {item.name}
@@ -578,7 +578,7 @@ export default function MTOs() {
                 </button>
               </div>
             </div>
-            <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+            <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {visibleMtoItems.map((item) => (
                 <MTOCard
                   key={item.id}
