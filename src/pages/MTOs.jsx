@@ -109,7 +109,8 @@ function formatEntryTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   const pad = (part) => String(part).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const year = String(date.getFullYear()).slice(-2);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())} ${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${year}`;
 }
 
 function downloadExcel(rows) {
@@ -182,18 +183,26 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
             </h2>
             <button
               type="button"
+              onClick={() => entries.length > 0 && setShowInputModal(true)}
+              aria-label={`Tổng số lượng ${item.name}: ${total}. Nhấn để xem lịch sử.`}
+              className="shrink-0 rounded-md border-2 border-black bg-[#EE3124] px-2.5 py-1.5 text-lg font-black leading-none text-white shadow-[2px_2px_0_0_#000] transition sm:hidden"
+            >
+              {total}
+            </button>
+            <button
+              type="button"
               onClick={() =>
                 entries.length > 0 && setShowEntries((current) => !current)
               }
               aria-label={`Tổng số lượng ${item.name}: ${total}. Nhấn để chỉnh sửa.`}
               aria-expanded={showEntries}
-              className={`shrink-0 rounded-md border-2 border-black bg-[#EE3124] px-2.5 py-1.5 text-lg font-black leading-none text-white shadow-[2px_2px_0_0_#000] transition`}
+              className="hidden shrink-0 rounded-md border-2 border-black bg-[#EE3124] px-2.5 py-1.5 text-lg font-black leading-none text-white shadow-[2px_2px_0_0_#000] transition sm:block"
             >
               {total}
             </button>
           </div>
           {showEntries && (
-            <div className="mt-3 border-t-2 border-dashed border-slate-300 pt-2">
+            <div className="mt-3 hidden border-t-2 border-dashed border-slate-300 pt-2 sm:block">
               <p className="mb-2 text-[10px] font-black uppercase text-stone-500">
                 Lịch sử nhập ({entries.length})
               </p>
@@ -304,6 +313,53 @@ function MTOCard({ item, entries, onAdd, onUpdate, onRemove }) {
                   </button>
                 </div>
               </label>
+              {entries.length > 0 && (
+                <div className="mt-4 border-t-2 border-dashed border-slate-300 pt-3 sm:hidden">
+                  <p className="mb-2 text-[10px] font-black uppercase text-stone-500">
+                    Lịch sử nhập ({entries.length})
+                  </p>
+                  <div className="max-h-48 overflow-x-hidden overflow-y-auto border-y border-slate-200">
+                    {entries.map((entry, index) => (
+                      <div
+                        key={`mobile-${index}-${typeof entry === "number" ? entry : entry.quantity}`}
+                        className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-slate-200 py-1.5 last:border-b-0"
+                      >
+                        <span className="text-[10px] font-black tabular-nums text-stone-400">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          defaultValue={typeof entry === "number" ? entry : entry.quantity}
+                          aria-label={`Lần nhập ${index + 1} của ${item.name}`}
+                          onBlur={(event) => {
+                            const value = Number(event.target.value);
+                            if (Number.isFinite(value) && value > 0)
+                              onUpdate(index, Math.round(value));
+                            else event.target.value = typeof entry === "number" ? entry : entry.quantity;
+                          }}
+                          className="h-8 w-full min-w-0 rounded border-2 border-black bg-white px-2 text-center text-sm font-black tabular-nums outline-none focus:bg-orange-50"
+                        />
+                        <time
+                          className="whitespace-nowrap text-[9px] font-bold tabular-nums text-stone-500"
+                          dateTime={typeof entry === "number" ? undefined : entry.createdAt}
+                        >
+                          {formatEntryTime(typeof entry === "number" ? null : entry.createdAt)}
+                        </time>
+                        <button
+                          type="button"
+                          onClick={() => onRemove(index)}
+                          aria-label={`Xóa lần nhập ${index + 1} của ${item.name}`}
+                          className="grid h-7 w-7 shrink-0 place-items-center rounded text-stone-400 hover:bg-red-50 hover:text-[#EE3124]"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
