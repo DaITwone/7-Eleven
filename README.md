@@ -1,6 +1,6 @@
 # My Store App
 
-Dashboard vận hành cửa hàng tiện lợi theo phong cách 7-Eleven, được xây bằng React, Vite và Tailwind CSS. Ứng dụng hiện là single-page app chạy hoàn toàn ở frontend, dùng dữ liệu tĩnh trong `src/data` và state trong React/localStorage.
+Dashboard vận hành cửa hàng tiện lợi theo phong cách 7-Eleven, được xây bằng React, Vite và Tailwind CSS. Dữ liệu MTO được lưu qua API bằng Prisma và PostgreSQL; các module còn lại chủ yếu dùng dữ liệu tĩnh trong `src/data` và state trong React/localStorage.
 
 ## Chức năng chính
 
@@ -16,6 +16,7 @@ Dashboard vận hành cửa hàng tiện lợi theo phong cách 7-Eleven, đư�
 - Tailwind CSS
 - lucide-react
 - oxlint
+- Prisma và PostgreSQL cho dữ liệu MTO
 
 ## Cài đặt và chạy local
 
@@ -147,9 +148,15 @@ State hiện nằm trong React state, chưa có database hoặc API lưu lâu d�
 
 Nếu hình ảnh không tồn tại, một số component sẽ hiển thị trạng thái fallback thay vì ảnh thật.
 
+## Dữ liệu MTO và Prisma
+
+MTO lưu số lượng kiểm kê và tồn hệ thống trong PostgreSQL thông qua `api/mto/entries.js`. API kiểm tra phiên bản trước khi thay thế snapshot; nếu một tab/thiết bị khác đã cập nhật trước đó, bản ghi cũ bị từ chối thay vì ghi đè dữ liệu mới. Bản chưa đồng bộ được giữ trong localStorage của trình duyệt.
+
+Đặt `DATABASE_URL` trong môi trường triển khai và chạy `npm run prisma:migrate:deploy` để áp dụng các migration đã commit. Trước khi triển khai migration lên dữ liệu quan trọng, xác nhận bản sao lưu/khả năng khôi phục ở nhà cung cấp PostgreSQL. Ứng dụng không tự tạo hoặc xác minh bản sao lưu database; localStorage chỉ là bản lưu tạm trên từng trình duyệt, không thay thế backup.
+
 ## Lưu ý hiện trạng
 
-- Đây là frontend prototype, chưa có backend/API/database.
+- Các module ngoài MTO vẫn chủ yếu là prototype frontend; state của chúng chưa được lưu lâu dài trên database.
 - Dữ liệu mock được đặt trong code để dễ demo và chỉnh nhanh.
 - Một số chuỗi tiếng Việt cần đảm bảo file được lưu bằng UTF-8 để tránh lỗi hiển thị.
-- Khi muốn mở rộng thành app production, nên tách dữ liệu khỏi component lớn, thêm persistence và chia nhỏ `PhanCongCa.jsx`.
+- Trước khi dùng production, cần thiết lập backup/restore định kỳ cho PostgreSQL và kiểm tra khôi phục thực tế.

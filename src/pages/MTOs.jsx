@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ClipboardPaste,
   FileSpreadsheet,
@@ -14,6 +14,81 @@ import { mtoItems } from "../data/mtos";
 
 const STORAGE_KEY = "mtoInventoryEntries";
 const SYSTEM_INVENTORY_KEY = "mtoSystemInventory";
+const PENDING_SAVE_KEY = "mtoPendingSave";
+
+function recordsFromEntries(entries) {
+  return entries.reduce((records, entry) => {
+    if (!records[entry.productId]) records[entry.productId] = [];
+    records[entry.productId].push({
+      quantity: entry.quantity,
+      createdAt: entry.createdAt,
+    });
+    return records;
+  }, {});
+}
+
+function snapshotsMatch(payload, data) {
+  if (!Array.isArray(payload.entries) || !data.revision) return false;
+  const normalizeEntries = (entries) =>
+    entries
+      .map(({ productId, quantity, createdAt }) => {
+        if (!createdAt || !Number.isFinite(Date.parse(createdAt))) return null;
+        return {
+          productId,
+          quantity,
+          createdAt: new Date(createdAt).toISOString(),
+        };
+      })
+      .sort((left, right) =>
+        JSON.stringify(left).localeCompare(JSON.stringify(right)),
+      );
+  const expectedEntries = normalizeEntries(payload.entries);
+  const actualEntries = normalizeEntries(data.entries ?? []);
+  if (
+    expectedEntries.some((entry) => entry === null) ||
+    JSON.stringify(expectedEntries) !== JSON.stringify(actualEntries)
+  ) {
+    return false;
+  }
+  const normalizeInventory = (inventory) =>
+    Object.entries(inventory ?? {}).sort(([left], [right]) =>
+      left.localeCompare(right),
+    );
+  return (
+    JSON.stringify(normalizeInventory(payload.systemInventory)) ===
+    JSON.stringify(normalizeInventory(data.systemInventory))
+  );
+}
+
+function readPendingSave() {
+  try {
+    const pending = JSON.parse(localStorage.getItem(PENDING_SAVE_KEY) ?? "null");
+    return pending &&
+      typeof pending === "object" &&
+      typeof pending.revision === "string" &&
+      Array.isArray(pending.entries) &&
+      pending.systemInventory &&
+      typeof pending.systemInventory === "object"
+      ? pending
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function downloadPendingSave() {
+  const pending = readPendingSave();
+  if (!pending) return;
+  const blob = new Blob([JSON.stringify(pending, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `mto-local-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 function normalizeProductName(value) {
   return value
@@ -390,6 +465,10 @@ export default function MTOs() {
   const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
   const [databaseReady, setDatabaseReady] = useState(false);
   const [databaseError, setDatabaseError] = useState("");
+  const [databaseConflict, setDatabaseConflict] = useState(false);
+  const revisionRef = useRef(null);
+  const saveBlockedRef = useRef(false);
+  const saveQueueRef = useRef({ pending: null, running: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -400,32 +479,111 @@ export default function MTOs() {
       })
       .then((data) => {
         if (cancelled) return;
-        const nextRecords = {};
-        for (const entry of data.entries ?? []) {
-          if (!nextRecords[entry.productId]) nextRecords[entry.productId] = [];
-          nextRecords[entry.productId].push({
-            quantity: entry.quantity,
-            createdAt: entry.createdAt,
-          });
+        if (typeof data.revision !== "string")
+          throw new Error("Database chưa hỗ trợ kiểm tra phiên bản dữ liệu.");
+        const pending = readPendingSave();
+        revisionRef.current = data.revision;
+        if (pending && snapshotsMatch(pending, data)) {
+          localStorage.removeItem(PENDING_SAVE_KEY);
+        } else if (pending && pending.revision !== data.revision) {
+          saveBlockedRef.current = true;
+          setDatabaseConflict(true);
+          setRecords(recordsFromEntries(pending.entries));
+          setAppliedInventory(
+            Object.keys(pending.systemInventory).length
+              ? pending.systemInventory
+              : null,
+          );
+          setDatabaseError(
+            "Dữ liệu trên database đã thay đổi. Bản lưu trên thiết bị này được giữ lại; không tải lại trang trước khi xử lý xung đột.",
+          );
+          setDatabaseReady(true);
+          return;
+        } else if (pending) {
+          setRecords(recordsFromEntries(pending.entries));
+          setAppliedInventory(
+            Object.keys(pending.systemInventory).length
+              ? pending.systemInventory
+              : null,
+          );
         }
-        setRecords(nextRecords);
-        setAppliedInventory(
-          data.systemInventory && Object.keys(data.systemInventory).length
-            ? data.systemInventory
-            : null,
-        );
+        if (!pending || snapshotsMatch(pending, data)) {
+          setRecords(recordsFromEntries(data.entries ?? []));
+          setAppliedInventory(
+            data.systemInventory && Object.keys(data.systemInventory).length
+              ? data.systemInventory
+              : null,
+          );
+        }
         setDatabaseReady(true);
       })
       .catch((error) => {
-        if (!cancelled) setDatabaseError(error.message);
+        if (!cancelled) {
+          setDatabaseError(error.message);
+          setDatabaseConflict(Boolean(readPendingSave()));
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const flushPendingSave = async () => {
+    const queue = saveQueueRef.current;
+    if (queue.running || saveBlockedRef.current) return;
+    queue.running = true;
+    try {
+      while (queue.pending && !saveBlockedRef.current) {
+        const pending = queue.pending;
+        queue.pending = null;
+        const payload = { ...pending, revision: revisionRef.current };
+        localStorage.setItem(PENDING_SAVE_KEY, JSON.stringify(payload));
+        try {
+          const response = await fetch("/api/mto/entries", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            if (response.status === 409) {
+              saveBlockedRef.current = true;
+              setDatabaseConflict(true);
+              queue.pending = queue.pending ?? pending;
+              localStorage.setItem(
+                PENDING_SAVE_KEY,
+                JSON.stringify({ ...queue.pending, revision: payload.revision }),
+              );
+              setDatabaseError(
+                "Dữ liệu trên database đã thay đổi. Bản lưu trên thiết bị này được giữ lại; không tải lại trang trước khi xử lý xung đột.",
+              );
+              break;
+            }
+            throw new Error(result.error ?? "Không lưu được dữ liệu lên database.");
+          }
+          if (typeof result.revision !== "string")
+            throw new Error("Không nhận được phiên bản dữ liệu đã lưu.");
+          revisionRef.current = result.revision;
+          localStorage.removeItem(PENDING_SAVE_KEY);
+          setDatabaseConflict(false);
+          setDatabaseError("");
+        } catch (error) {
+          queue.pending = queue.pending ?? pending;
+          localStorage.setItem(
+            PENDING_SAVE_KEY,
+            JSON.stringify({ ...queue.pending, revision: payload.revision }),
+          );
+          setDatabaseError(error.message);
+          break;
+        }
+      }
+    } finally {
+      queue.running = false;
+    }
+  };
+
   useEffect(() => {
-    if (!databaseReady) return;
+    if (!databaseReady || revisionRef.current === null) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     const entries = Object.entries(records).flatMap(([productId, quantities]) =>
       quantities.map((entry) => ({
@@ -436,21 +594,24 @@ export default function MTOs() {
           : { createdAt: entry.createdAt }),
       })),
     );
-    const timer = window.setTimeout(() => {
-      fetch("/api/mto/entries", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entries,
-          systemInventory: appliedInventory ?? {},
+    const payload = {
+      entries,
+      systemInventory: appliedInventory ?? {},
+    };
+    if (saveBlockedRef.current) {
+      const pending = readPendingSave();
+      localStorage.setItem(
+        PENDING_SAVE_KEY,
+        JSON.stringify({
+          ...payload,
+          revision: pending?.revision ?? revisionRef.current,
         }),
-      })
-        .then((response) => {
-          if (!response.ok)
-            throw new Error("Không lưu được dữ liệu lên database.");
-          setDatabaseError("");
-        })
-        .catch((error) => setDatabaseError(error.message));
+      );
+      return;
+    }
+    saveQueueRef.current.pending = payload;
+    const timer = window.setTimeout(() => {
+      void flushPendingSave();
     }, 250);
     return () => window.clearTimeout(timer);
   }, [records, appliedInventory, databaseReady]);
@@ -595,13 +756,21 @@ export default function MTOs() {
           />
           <div className="p-5 md:p-7">
             {databaseError && (
-              <p
+              <div
                 role="alert"
-                className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800"
+                className="mb-4 flex flex-col gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800 sm:flex-row sm:items-center sm:justify-between"
               >
-                {databaseError} Dữ liệu đang lưu trên thiết bị này; hãy kiểm tra
-                API và cấu hình database.
-              </p>
+                {databaseError}
+                {databaseConflict && (
+                  <button
+                    type="button"
+                    onClick={downloadPendingSave}
+                    className="shrink-0 rounded border-2 border-red-800 px-3 py-2 text-xs font-black uppercase hover:bg-red-100"
+                  >
+                    Tải bản lưu cục bộ
+                  </button>
+                )}
+              </div>
             )}
             <div className="mto-actions flex flex-col gap-4 border-b-2 border-dashed border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
               <div>
