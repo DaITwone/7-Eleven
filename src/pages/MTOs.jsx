@@ -469,6 +469,7 @@ export default function MTOs() {
   const revisionRef = useRef(null);
   const saveBlockedRef = useRef(false);
   const saveQueueRef = useRef({ pending: null, running: false });
+  const skipNextSaveRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -584,6 +585,10 @@ export default function MTOs() {
 
   useEffect(() => {
     if (!databaseReady || revisionRef.current === null) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     const entries = Object.entries(records).flatMap(([productId, quantities]) =>
       quantities.map((entry) => ({
@@ -615,6 +620,75 @@ export default function MTOs() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [records, appliedInventory, databaseReady]);
+
+  useEffect(() => {
+    if (!databaseReady) return;
+    let cancelled = false;
+    let checking = false;
+
+    const syncFromDatabase = async () => {
+      const queue = saveQueueRef.current;
+      if (
+        checking ||
+        saveBlockedRef.current ||
+        queue.running ||
+        queue.pending
+      ) {
+        return;
+      }
+
+      checking = true;
+      try {
+        const response = await fetch("/api/mto/entries", {
+          cache: "no-store",
+        });
+        if (!response.ok)
+          throw new Error("Không thể đồng bộ dữ liệu kiểm kê.");
+        const data = await response.json();
+        if (cancelled || typeof data.revision !== "string") return;
+        if (data.revision !== revisionRef.current) {
+          const nextRecords = recordsFromEntries(data.entries ?? []);
+          const nextInventory =
+            data.systemInventory && Object.keys(data.systemInventory).length
+              ? data.systemInventory
+              : null;
+          revisionRef.current = data.revision;
+          skipNextSaveRef.current = true;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
+          if (nextInventory) {
+            localStorage.setItem(
+              SYSTEM_INVENTORY_KEY,
+              JSON.stringify(nextInventory),
+            );
+          } else {
+            localStorage.removeItem(SYSTEM_INVENTORY_KEY);
+          }
+          setRecords(nextRecords);
+          setAppliedInventory(nextInventory);
+        }
+        if (!readPendingSave()) setDatabaseError("");
+      } catch (error) {
+        if (!cancelled && !readPendingSave()) setDatabaseError(error.message);
+      } finally {
+        checking = false;
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void syncFromDatabase();
+    }, 2000);
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") void syncFromDatabase();
+    };
+    document.addEventListener("visibilitychange", syncWhenVisible);
+    window.addEventListener("focus", syncWhenVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+      window.removeEventListener("focus", syncWhenVisible);
+    };
+  }, [databaseReady]);
 
   const importedInventory = useMemo(() => {
     if (!Array.isArray(systemInventory)) return [];
@@ -773,10 +847,13 @@ export default function MTOs() {
               </div>
             )}
             <div className="mto-actions flex flex-col gap-4 border-b-2 border-dashed border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="inline-block rounded-sm bg-[#007A3D] px-3 py-2 text-xl font-black uppercase tracking-wide text-white">
                   Kiểm kê MTOs
                 </h1>
+                <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800">
+                  Đồng bộ tự động ~2 giây
+                </span>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
