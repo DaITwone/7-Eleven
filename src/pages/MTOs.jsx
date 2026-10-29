@@ -128,11 +128,10 @@ function splitPastedColumn(text) {
   return text.split(/\r?\n/).map((value) => value.trim());
 }
 
-function parseSystemInventory(namesText, quantitiesText, pricesText) {
+function parseSystemInventory(namesText, quantitiesText) {
   const names = splitPastedColumn(namesText);
   const quantities = splitPastedColumn(quantitiesText);
-  const prices = splitPastedColumn(pricesText);
-  const rowCount = Math.max(names.length, quantities.length, prices.length);
+  const rowCount = Math.max(names.length, quantities.length);
 
   return Array.from({ length: rowCount }, (_, index) => {
     const name = names[index] ?? "";
@@ -140,14 +139,9 @@ function parseSystemInventory(namesText, quantitiesText, pricesText) {
       .replace(/\s/g, "")
       .replace(/\.(?=\d{3}(?:\D|$))/g, "")
       .replace(",", ".");
-    const priceText = (prices[index] ?? "")
-      .replace(/\s/g, "")
-      .replace(/\.(?=\d{3}(?:\D|$))/g, "")
-      .replace(",", ".");
     const quantity = Number(quantityText);
-    const price = Number(priceText);
     if (/^(t[eê]n( s[aả]n ph[aẩ]m)?|name)$/i.test(name)) return null;
-    if (!name && !quantityText && !priceText) return null;
+    if (!name && !quantityText) return null;
 
     return {
       name,
@@ -155,8 +149,6 @@ function parseSystemInventory(namesText, quantitiesText, pricesText) {
         quantityText !== "" && Number.isFinite(quantity) && quantity >= 0
           ? quantity
           : "",
-      price:
-        priceText !== "" && Number.isFinite(price) && price >= 0 ? price : "",
       quantityMissing: quantityText === "",
     };
   }).filter(Boolean);
@@ -482,7 +474,6 @@ export default function MTOs() {
   const [inventoryColumns, setInventoryColumns] = useState({
     names: "",
     quantities: "",
-    prices: "",
   });
   const [systemInventory, setSystemInventory] = useState(null);
   const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
@@ -1141,8 +1132,8 @@ export default function MTOs() {
                   Đối chiếu tồn hệ thống
                 </h2>
                 <p className="mt-1 max-w-3xl text-[11px] font-semibold leading-4 text-white/85 sm:text-xs sm:leading-5">
-                  Dán riêng từng cột từ Excel; dữ liệu ghép theo thứ tự dòng.
-                  Price có thể để trống, còn Số lượng cần có trước khi áp dụng.
+                  Dán cột tên sản phẩm và số lượng từ Excel; dữ liệu ghép theo
+                  thứ tự dòng. Số lượng cần có trước khi áp dụng.
                 </p>
               </div>
               <button
@@ -1160,13 +1151,12 @@ export default function MTOs() {
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-wide text-black">Dữ liệu hệ thống</h3>
                   </div>
-                  <span className="bg-[#007A3D] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Excel · 3 cột</span>
+                  <span className="bg-[#007A3D] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Excel · 2 cột</span>
                 </div>
-                <div className="grid min-w-0 gap-3 bg-[#F4FAF6] p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-3 bg-[#F4FAF6] p-3 sm:p-4 md:grid-cols-2">
                   {[
                     ["names", "TÊN SẢN PHẨM", "Dán cột tên sản phẩm", "01"],
                     ["quantities", "SỐ LƯỢNG", "Dán cột số lượng", "02"],
-                    ["prices", "PRICE", "Dán cột Price (không bắt buộc)", "03"],
                   ].map(([key, label, placeholder, number]) => (
                     <label key={key} className="min-w-0 border-2 border-[#008061] bg-white p-3 text-xs font-extrabold text-slate-900 shadow-[2px_2px_0_0_#008061] transition focus-within:border-black focus-within:shadow-[2px_2px_0_0_#000]">
                       <span className="mb-2 flex items-center justify-between gap-2">
@@ -1195,7 +1185,7 @@ export default function MTOs() {
                       onClick={() => {
                         setSystemInventory(null);
                         setAppliedInventory(null);
-                        setInventoryColumns({ names: "", quantities: "", prices: "" });
+                        setInventoryColumns({ names: "", quantities: "" });
                         localStorage.removeItem(SYSTEM_INVENTORY_KEY);
                       }}
                       className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-md border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase text-slate-700 shadow-[3px_3px_0_0_#000] transition hover:bg-red-50 hover:text-[#EE3124] sm:w-auto"
@@ -1210,7 +1200,6 @@ export default function MTOs() {
                         parseSystemInventory(
                           inventoryColumns.names,
                           inventoryColumns.quantities,
-                          inventoryColumns.prices,
                         ),
                       )
                     }
@@ -1237,8 +1226,6 @@ export default function MTOs() {
                           <th className="p-2">Tên trong Excel</th>
                           <th className="p-2">Mặt hàng trên trang</th>
                           <th className="p-2">Tồn hệ thống</th>
-                          <th className="p-2">Price</th>
-                          <th className="p-2">Amount</th>
                           <th className="p-2">Thực tế</th>
                           <th className="p-2">Chênh lệch</th>
                         </tr>
@@ -1266,8 +1253,6 @@ export default function MTOs() {
                               Number.isFinite(Number(entry.quantity))
                               ? actual - Number(entry.quantity)
                               : null;
-                          const price = Number(entry.price) || 0;
-                          const amount = (Number(entry.quantity) || 0) * price;
                           return (
                             <tr
                               key={`${entry.name}-${index}`}
@@ -1334,35 +1319,6 @@ export default function MTOs() {
                                   className={`w-24 rounded border px-2 py-1 ${ambiguous ? "border-amber-500 bg-white" : "border-slate-300"}`}
                                 />
                               </td>
-                              <td className="p-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="any"
-                                  value={entry.price ?? ""}
-                                  onChange={(event) =>
-                                    setSystemInventory((current) =>
-                                      current.map((row, rowIndex) =>
-                                        rowIndex === index
-                                          ? {
-                                              ...row,
-                                              price:
-                                                event.target.value === ""
-                                                  ? ""
-                                                  : Number(event.target.value),
-                                            }
-                                          : row,
-                                      ),
-                                    )
-                                  }
-                                  placeholder="0"
-                                  aria-label={`Price ${entry.name}`}
-                                  className="w-28 rounded border border-slate-300 px-2 py-1"
-                                />
-                              </td>
-                              <td className="p-2 font-bold">
-                                {amount.toLocaleString("vi-VN")}
-                              </td>
                               <td className="p-2 font-bold">
                                 {selectedOther ? "—" : target ? actual : "—"}
                               </td>
@@ -1400,8 +1356,6 @@ export default function MTOs() {
                         Number.isFinite(Number(entry.quantity))
                           ? actual - Number(entry.quantity)
                           : null;
-                      const price = Number(entry.price) || 0;
-                      const amount = (Number(entry.quantity) || 0) * price;
                       return (
                         <article
                           key={`mobile-${entry.name}-${index}`}
@@ -1477,41 +1431,6 @@ export default function MTOs() {
                                 className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
                               />
                             </label>
-                            <label className="min-w-0">
-                              <span className="mb-1 block font-bold text-slate-500">
-                                Price
-                              </span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={entry.price ?? ""}
-                                onChange={(event) =>
-                                  setSystemInventory((current) =>
-                                    current.map((row, rowIndex) =>
-                                      rowIndex === index
-                                        ? {
-                                            ...row,
-                                            price:
-                                              event.target.value === ""
-                                                ? ""
-                                                : Number(event.target.value),
-                                          }
-                                        : row,
-                                    ),
-                                  )
-                                }
-                                className="w-full rounded border border-slate-300 px-2 py-2 text-sm"
-                              />
-                            </label>
-                            <div>
-                              <span className="mb-1 block font-bold text-slate-500">
-                                Amount
-                              </span>
-                              <p className="rounded bg-slate-50 px-2 py-2 text-sm font-bold">
-                                {amount.toLocaleString("vi-VN")}
-                              </p>
-                            </div>
                             <div>
                               <span className="mb-1 block font-bold text-slate-500">
                                 Thực tế
