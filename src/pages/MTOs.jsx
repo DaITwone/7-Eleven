@@ -27,6 +27,29 @@ function recordsFromEntries(entries) {
   }, {});
 }
 
+function inventoryPayloadFromState(records, systemInventory) {
+  const entries = Object.entries(records).flatMap(([productId, quantities]) =>
+    quantities.map((entry) => ({
+      productId,
+      quantity: typeof entry === "number" ? entry : entry.quantity,
+      ...(typeof entry === "number" || !entry.createdAt
+        ? {}
+        : { createdAt: entry.createdAt }),
+    })),
+  );
+  return { entries, systemInventory: systemInventory ?? {} };
+}
+
+function inventoryStateFromResponse(data) {
+  return {
+    records: recordsFromEntries(data.entries ?? []),
+    systemInventory:
+      data.systemInventory && Object.keys(data.systemInventory).length
+        ? data.systemInventory
+        : null,
+  };
+}
+
 function snapshotsMatch(payload, data) {
   if (!Array.isArray(payload.entries) || !data.revision) return false;
   const normalizeEntries = (entries) =>
@@ -192,7 +215,7 @@ function downloadExcel(rows) {
   const tableRows = rows
     .map(
       (row) =>
-        `<tr><td>${row.name}</td><td>${row.systemTotal ?? ""}</td><td>${row.price ?? ""}</td><td>${row.amount ?? ""}</td><td>${row.total}</td><td>${row.systemTotal == null ? "" : row.systemTotal - row.total}</td></tr>`,
+        `<tr><td>${row.name}</td><td>${row.systemTotal ?? ""}</td><td>${row.price ?? ""}</td><td>${row.amount ?? ""}</td><td>${row.total}</td><td>${row.systemTotal == null ? "" : row.total - row.systemTotal}</td></tr>`,
     )
     .join("");
   const workbook = `\ufeff<html><head><meta charset="utf-8"></head><body><table><thead><tr><th>Mặt hàng</th><th>Tồn hệ thống</th><th>Price</th><th>Amount</th><th>Tồn thực tế</th><th>Chênh lệch</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
@@ -463,9 +486,14 @@ export default function MTOs() {
   });
   const [systemInventory, setSystemInventory] = useState(null);
   const [appliedInventory, setAppliedInventory] = useState(readSystemInventory);
+  const recordsRef = useRef(records);
+  const appliedInventoryRef = useRef(appliedInventory);
+  recordsRef.current = records;
+  appliedInventoryRef.current = appliedInventory;
   const [databaseReady, setDatabaseReady] = useState(false);
   const [databaseError, setDatabaseError] = useState("");
   const [databaseConflict, setDatabaseConflict] = useState(false);
+  const [resolvingConflict, setResolvingConflict] = useState(false);
   const revisionRef = useRef(null);
   const saveBlockedRef = useRef(false);
   const saveQueueRef = useRef({ pending: null, running: false });
@@ -496,7 +524,7 @@ export default function MTOs() {
               : null,
           );
           setDatabaseError(
-            "Dữ liệu trên database đã thay đổi. Bản lưu trên thiết bị này được giữ lại; không tải lại trang trước khi xử lý xung đột.",
+            "Dữ liệu database và bản lưu trên thiết bị đã khác nhau. Hãy chọn bản cần giữ; dữ liệu trên thiết bị vẫn được bảo toàn.",
           );
           setDatabaseReady(true);
           return;
@@ -556,7 +584,7 @@ export default function MTOs() {
                 JSON.stringify({ ...queue.pending, revision: payload.revision }),
               );
               setDatabaseError(
-                "Dữ liệu trên database đã thay đổi. Bản lưu trên thiết bị này được giữ lại; không tải lại trang trước khi xử lý xung đột.",
+                "Dữ liệu database và bản lưu trên thiết bị đã khác nhau. Hãy chọn bản cần giữ; dữ liệu trên thiết bị vẫn được bảo toàn.",
               );
               break;
             }
@@ -590,19 +618,7 @@ export default function MTOs() {
       return;
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-    const entries = Object.entries(records).flatMap(([productId, quantities]) =>
-      quantities.map((entry) => ({
-        productId,
-        quantity: typeof entry === "number" ? entry : entry.quantity,
-        ...(typeof entry === "number" || !entry.createdAt
-          ? {}
-          : { createdAt: entry.createdAt }),
-      })),
-    );
-    const payload = {
-      entries,
-      systemInventory: appliedInventory ?? {},
-    };
+    const payload = inventoryPayloadFromState(records, appliedInventory);
     if (saveBlockedRef.current) {
       const pending = readPendingSave();
       localStorage.setItem(
@@ -690,6 +706,124 @@ export default function MTOs() {
     };
   }, [databaseReady]);
 
+  const resolveDatabaseConflict = async (keepLocal) => {
+    if (resolvingConflict) return;
+    if (
+      keepLocal &&
+      !window.confirm(
+        "Ghi đè dữ liệu hiện có trên database bằng bản lưu trên thiết bị này?",
+      )
+    ) {
+      return;
+    }
+    const localPayloadAtStart = inventoryPayloadFromState(
+      recordsRef.current,
+      appliedInventoryRef.current,
+    );
+    setResolvingConflict(true);
+    setDatabaseError("");
+    try {
+      const currentResponse = await fetch("/api/mto/entries", {
+        cache: "no-store",
+      });
+      if (!currentResponse.ok)
+        throw new Error("Không thể tải dữ liệu mới nhất từ database.");
+      const current = await currentResponse.json();
+      if (typeof current.revision !== "string")
+        throw new Error("Database chưa hỗ trợ kiểm tra phiên bản dữ liệu.");
+
+      if (!keepLocal) {
+        const latestLocalPayload = inventoryPayloadFromState(
+          recordsRef.current,
+          appliedInventoryRef.current,
+        );
+        if (JSON.stringify(latestLocalPayload) !== JSON.stringify(localPayloadAtStart))
+          throw new Error(
+            "Dữ liệu trên thiết bị vừa thay đổi. Hãy chọn lại cách xử lý xung đột.",
+          );
+        const next = inventoryStateFromResponse(current);
+        revisionRef.current = current.revision;
+        saveBlockedRef.current = false;
+        saveQueueRef.current.pending = null;
+        skipNextSaveRef.current = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next.records));
+        if (next.systemInventory) {
+          localStorage.setItem(
+            SYSTEM_INVENTORY_KEY,
+            JSON.stringify(next.systemInventory),
+          );
+        } else {
+          localStorage.removeItem(SYSTEM_INVENTORY_KEY);
+        }
+        localStorage.removeItem(PENDING_SAVE_KEY);
+        setRecords(next.records);
+        setAppliedInventory(next.systemInventory);
+        setDatabaseConflict(false);
+        setDatabaseReady(true);
+        return;
+      }
+
+      const payload = inventoryPayloadFromState(
+        recordsRef.current,
+        appliedInventoryRef.current,
+      );
+      const pendingPayload = { ...payload, revision: current.revision };
+      localStorage.setItem(PENDING_SAVE_KEY, JSON.stringify(pendingPayload));
+      const response = await fetch("/api/mto/entries", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingPayload),
+      });
+      const result = await response.json();
+      if (response.status === 409) {
+        saveBlockedRef.current = true;
+        setDatabaseConflict(true);
+        setDatabaseError(
+          "Database vừa tiếp tục thay đổi. Bản lưu trên thiết bị vẫn được giữ; hãy thử chọn lại sau.",
+        );
+        return;
+      }
+      if (!response.ok)
+        throw new Error(result.error ?? "Không lưu được dữ liệu lên database.");
+      if (typeof result.revision !== "string")
+        throw new Error("Không nhận được phiên bản dữ liệu đã lưu.");
+
+      revisionRef.current = result.revision;
+      saveBlockedRef.current = false;
+      saveQueueRef.current.pending = null;
+      const latestPayload = inventoryPayloadFromState(
+        recordsRef.current,
+        appliedInventoryRef.current,
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recordsRef.current));
+      if (appliedInventoryRef.current) {
+        localStorage.setItem(
+          SYSTEM_INVENTORY_KEY,
+          JSON.stringify(appliedInventoryRef.current),
+        );
+      } else {
+        localStorage.removeItem(SYSTEM_INVENTORY_KEY);
+      }
+      if (JSON.stringify(latestPayload) === JSON.stringify(payload)) {
+        localStorage.removeItem(PENDING_SAVE_KEY);
+        if (!databaseReady) skipNextSaveRef.current = true;
+      } else {
+        saveQueueRef.current.pending = latestPayload;
+        localStorage.setItem(
+          PENDING_SAVE_KEY,
+          JSON.stringify({ ...latestPayload, revision: result.revision }),
+        );
+        if (databaseReady) void flushPendingSave();
+      }
+      setDatabaseConflict(false);
+      setDatabaseReady(true);
+    } catch (error) {
+      setDatabaseError(error.message);
+    } finally {
+      setResolvingConflict(false);
+    }
+  };
+
   const importedInventory = useMemo(() => {
     if (!Array.isArray(systemInventory)) return [];
     return systemInventory.map((entry) => ({
@@ -740,7 +874,7 @@ export default function MTOs() {
             imported?.price !== ""
               ? systemTotal * price
               : null,
-          difference: systemTotal === null ? null : systemTotal - total,
+          difference: systemTotal === null ? null : total - systemTotal,
         };
       }),
     [records, appliedInventory, importedInventory],
@@ -832,17 +966,36 @@ export default function MTOs() {
             {databaseError && (
               <div
                 role="alert"
-                className="mb-4 flex flex-col gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800 sm:flex-row sm:items-center sm:justify-between"
+                className="mb-4 flex flex-col gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800"
               >
-                {databaseError}
+                <p>{databaseError}</p>
                 {databaseConflict && (
-                  <button
-                    type="button"
-                    onClick={downloadPendingSave}
-                    className="shrink-0 rounded border-2 border-red-800 px-3 py-2 text-xs font-black uppercase hover:bg-red-100"
-                  >
-                    Tải bản lưu cục bộ
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={downloadPendingSave}
+                      disabled={resolvingConflict}
+                      className="shrink-0 rounded border-2 border-red-800 px-3 py-2 text-xs font-black uppercase hover:bg-red-100 disabled:opacity-50"
+                    >
+                      Tải bản lưu cục bộ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resolveDatabaseConflict(false)}
+                      disabled={resolvingConflict}
+                      className="shrink-0 rounded border-2 border-slate-700 bg-white px-3 py-2 text-xs font-black uppercase text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+                    >
+                      Dùng dữ liệu database
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resolveDatabaseConflict(true)}
+                      disabled={resolvingConflict}
+                      className="shrink-0 rounded border-2 border-red-800 bg-red-700 px-3 py-2 text-xs font-black uppercase text-white hover:bg-red-800 disabled:opacity-50"
+                    >
+                      Ghi đè database bằng bản cục bộ
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -1111,7 +1264,7 @@ export default function MTOs() {
                               target &&
                               entry.quantity !== "" &&
                               Number.isFinite(Number(entry.quantity))
-                              ? Number(entry.quantity) - actual
+                              ? actual - Number(entry.quantity)
                               : null;
                           const price = Number(entry.price) || 0;
                           const amount = (Number(entry.quantity) || 0) * price;
@@ -1245,7 +1398,7 @@ export default function MTOs() {
                         target &&
                         entry.quantity !== "" &&
                         Number.isFinite(Number(entry.quantity))
-                          ? Number(entry.quantity) - actual
+                          ? actual - Number(entry.quantity)
                           : null;
                       const price = Number(entry.price) || 0;
                       const amount = (Number(entry.quantity) || 0) * price;
@@ -1383,7 +1536,7 @@ export default function MTOs() {
                     })}
                   </div>
                   <p className="text-xs text-slate-500">
-                    Chênh lệch = Tồn hệ thống − Tồn thực tế. Những mặt hàng
+                    Chênh lệch = Tồn thực tế − Tồn hệ thống. Những mặt hàng
                     không có trong danh sách dán sẽ được xem là tồn hệ thống 0
                     sau khi áp dụng.
                   </p>

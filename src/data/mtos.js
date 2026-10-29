@@ -87,7 +87,11 @@ const names = [
   "BB Gà quay HongKong",
   "Bánh giò",
   "Nắp nhựa phẳng UKP",
-  "BB Cade"
+  "BB Cade",
+  "Bò viên xiên",
+  "Xúc xích Standard",
+  "Chả cá HQ",
+  "Bột ớt"
 ];
 
 // Khai báo đơn vị thủ công theo id sản phẩm.
@@ -167,7 +171,11 @@ const unitsById = {
   "bb-ga-quay-hongkong": "Cái",
   "banh-gio": "Cái",
   "nap-nhua-phang-ukp": "Cái",
-  "bb-cade": "Cái"
+  "bb-cade": "Cái",
+  "bo-vien-xien": "Xiên",
+  "xuc-xich-standard": "Cái",
+  "cha-ca-hq": "Xiên",
+  "bot-ot": "G"
 };
 
 export const mtoItems = names.map((name) => ({
